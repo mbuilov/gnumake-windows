@@ -1,0 +1,15 @@
+diff -Naur make-4.2.1.orig/w32/subproc/sub_proc.c make-4.2.1.patched/w32/subproc/sub_proc.c
+--- make-4.2.1.orig/w32/subproc/sub_proc.c	2016-05-21 23:20:57.000000000 +0300
++++ make-4.2.1.patched/w32/subproc/sub_proc.c	2017-01-11 12:55:39.343990000 +0300
+@@ -564,6 +564,11 @@
+                                 &bytes_returned, 0) == FALSE || bytes_returned < 2) {
+ 
+                         pproc->last_err = GetLastError();
++                        if (!pproc->last_err) {
++                                fprintf (stderr, "ReadFile failed to read more than 2 bytes of input (read %d bytes from %s).\n",
++                                         bytes_returned, exec_fname);
++                                pproc->last_err = ERROR_BAD_FORMAT;
++                        }
+                         pproc->lerrno = E_IO;
+                         CloseHandle(exec_handle);
+                         return(-1);
