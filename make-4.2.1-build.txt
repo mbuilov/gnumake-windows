@@ -5,7 +5,14 @@ From cygwin or other unix shell:
 1) get archive:      wget http://ftp.gnu.org/gnu/make/make-4.2.1.tar.bz2
 2) unpack archive:   tar xf make-4.2.1.tar.bz2
 3) go to sources:    cd make-4.2.1
-4) patch make:       patch -Np1 -i ../make-4.2.1-sub_proc.patch
+4) patch make:
+
+ - fix bug under Windows
+  patch -Np1 -i ../make-4.2.1-sub_proc.patch
+
+ - optimization patch
+  patch -Np1 -i ../make-4.2.1-expand.patch
+
 5) run dos prompt:   cmd.exe /c "start cmd.exe"
 6) setup compiler:   "c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86_amd64
 7) do compile:       build_w32.bat --without-guile

@@ -1,0 +1,39 @@
+diff -Naur make-4.2.1/expand.c make-4.2.1-modified/expand.c
+--- make-4.2.1/expand.c	2016-05-21 23:22:32.000000000 +0300
++++ make-4.2.1-modified/expand.c	2017-04-20 13:39:58.691884200 +0300
+@@ -210,6 +210,20 @@
+       return (variable_buffer);
+     }
+ 
++  if (length < 0)
++    {
++      /* Copy all following uninteresting chars all at once to the
++         variable output buffer, and skip them.  Uninteresting chars end
++         at the next $ or the end of the input.  */
++
++      p1 = strchr (string, '$');
++      if (!p1)
++        {
++          o = variable_buffer_output (o, string, strlen (string) + 1);
++          return (variable_buffer + line_offset);
++        }
++    }
++
+   /* We need a copy of STRING: due to eval, it's possible that it will get
+      freed as we process it (it might be the value of a variable that's reset
+      for example).  Also having a nil-terminated string is handy.  */
+@@ -222,7 +236,13 @@
+          variable output buffer, and skip them.  Uninteresting chars end
+          at the next $ or the end of the input.  */
+ 
+-      p1 = strchr (p, '$');
++      if (length < 0)
++        {
++          length = 0;
++          p1 = p + (unsigned int)(p1 - string);
++        }
++      else
++        p1 = strchr (p, '$');
+ 
+       o = variable_buffer_output (o, p, p1 != 0 ? (unsigned int)(p1 - p) : strlen (p) + 1);
+ 
