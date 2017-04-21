@@ -10,8 +10,9 @@ From cygwin or other unix shell:
  - fix bug under Windows
   patch -Np1 -i ../make-4.2.1-sub_proc.patch
 
- - optimization patch
+ - optional optimization patches
   patch -Np1 -i ../make-4.2.1-expand.patch
+  patch -Np1 -i ../make-4.2.1-sort.patch
 
 5) run dos prompt:   cmd.exe /c "start cmd.exe"
 6) setup compiler:   "c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86_amd64
