@@ -1,0 +1,21 @@
+diff -Naur make-4.2.1-orig/function.c make-4.2.1-patched/function.c
+--- make-4.2.1-orig/function.c	2016-05-21 23:22:32.000000000 +0300
++++ make-4.2.1-patched/function.c	2017-05-04 11:45:30.278325500 +0300
+@@ -1043,7 +1043,7 @@
+               wp = hash_find_item (&a_word_table, &a_word_key);
+               while (wp)
+                 {
+-                  wp->matched |= 1;
++                  wp->matched = 1;
+                   wp = wp->chain;
+                 }
+             }
+@@ -1057,7 +1057,7 @@
+       for (wp = wordhead; wp != 0; wp = wp->next)
+         if (is_filter ? wp->matched : !wp->matched)
+           {
+-            o = variable_buffer_output (o, wp->str, strlen (wp->str));
++            o = variable_buffer_output (o, wp->str, wp->length);
+             o = variable_buffer_output (o, " ", 1);
+             doneany = 1;
+           }
