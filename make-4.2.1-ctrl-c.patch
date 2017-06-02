@@ -1,0 +1,199 @@
+diff -Naur make-4.2.1/commands.c make-4.2.1-patched/commands.c
+--- make-4.2.1/commands.c	2016-05-21 23:21:52.000000000 +0300
++++ make-4.2.1-patched/commands.c	2017-06-02 18:10:29.037923600 +0300
+@@ -474,6 +474,12 @@
+   /* Start the commands running.  */
+   new_job (file);
+ }
++
++#ifdef WINDOWS32
++/* defined in job.c */
++extern void wait_to_suspend_main_thread (void);
++#endif
++
+ 
+ /* This is set while we are inside fatal_error_signal,
+    so things can avoid nonreentrant operations.  */
+@@ -507,9 +513,13 @@
+ #ifdef WINDOWS32
+   extern HANDLE main_thread;
+ 
+-  /* Windows creates a sperate thread for handling Ctrl+C, so we need
++  /* Windows creates a separate thread for handling Ctrl+C, so we need
+      to suspend the main thread, or else we will have race conditions
+      when both threads call reap_children.  */
++
++  /* Wait until main thread releases resources.  */
++  wait_to_suspend_main_thread();
++
+   if (main_thread)
+     {
+       DWORD susp_count = SuspendThread (main_thread);
+diff -Naur make-4.2.1/job.c make-4.2.1-patched/job.c
+--- make-4.2.1/job.c	2016-05-21 23:22:32.000000000 +0300
++++ make-4.2.1-patched/job.c	2017-06-02 18:10:29.047923600 +0300
+@@ -545,6 +545,76 @@
+ #endif
+ }
+ 
++#ifdef WINDOWS32
++
++static HANDLE susp_main_event = NULL;
++static LONG may_suspend_main_flag = 0;
++
++void create_susp_main_event (void)
++{
++  susp_main_event = CreateEvent(
++    NULL,  /* The handle cannot be inherited by child processes */
++    FALSE, /* Manual-reset */
++    FALSE, /* Initial state */
++    NULL   /* Name of the event object */
++  );
++
++  if (susp_main_event == NULL)
++    {
++      DWORD e = GetLastError ();
++      fprintf (stderr,
++               "Failed to create event object (Error %ld: %s)\n",
++               e, map_windows32_error_to_string (e));
++    }
++}
++
++void delete_susp_main_event (void)
++{
++  CloseHandle(susp_main_event);
++}
++
++/* There are moments when main thread cannot be suspended by Ctrl-C
++   handler thread, for example, if main thread owns stdout's lock.
++   If main thread may be suspended, by calling this function, it
++   will wakeup Ctrl-C handler thread and then will go to infinite sleep.  */
++static void may_suspend_main (LONG may)
++{
++  LONG old;
++
++  /* Ctrl-C handler thread sets this flag only after suspending main thread,
++     so if flag is set, then calling thread is not the Main thread.  */
++  if (handling_fatal_signal)
++    return;
++
++  /* Check if Ctrl-C handler thread waits to suspend main thread.  */
++  old = InterlockedExchange (&may_suspend_main_flag, may);
++  if (old < 0)
++    {
++      if (may)
++        SetEvent (susp_main_event);
++      Sleep (INFINITE);
++    }
++}
++
++/* Wait until main thread signals that it may be suspended.  */
++void wait_to_suspend_main_thread (void)
++{
++  LONG may = InterlockedExchange (&may_suspend_main_flag, -1);
++  if (!may)
++    {
++      DWORD result = WaitForSingleObject(susp_main_event, INFINITE);
++      if (WAIT_OBJECT_0 != result)
++        {
++          DWORD e = GetLastError ();
++          fprintf (stderr,
++                   "Failed to wait to suspend main thread (Error %ld: %s)\n",
++                   e, map_windows32_error_to_string (e));
++        }
++    }
++}
++
++#endif /* WINDOWS32 */
++
+ extern pid_t shell_function_pid;
+ 
+ /* Reap all dead children, storing the returned status and the new command
+@@ -759,6 +829,9 @@
+                   }
+                 else
+                   DB (DB_VERBOSE, ("Main thread handle = %p\n", main_thread));
++
++                /* Main thread may be suspended by the Ctrl-C handler thread.  */
++                may_suspend_main (1);
+               }
+ 
+             /* wait for anything to finish */
+@@ -832,6 +905,11 @@
+                     : _("Reaping winning child %p PID %s %s\n"),
+                     c, pid2str (c->pid), c->remote ? _(" (remote)") : ""));
+ 
++#ifdef WINDOWS32
++      /* Ctrl-C handler thread must wait until it may suspend main thread.  */
++      may_suspend_main (0);
++#endif
++
+       if (c->sh_batch_file)
+         {
+           int rm_status;
+@@ -914,9 +992,15 @@
+                      arrive now; it will clean up this child's targets.  */
+                   unblock_sigs ();
+                   if (c->file->command_state == cs_running)
+-                    /* We successfully started the new command.
+-                       Loop to reap more children.  */
+-                    continue;
++                    {
++#ifdef WINDOWS32
++                      /* Main thread may be suspended by the Ctrl-C handler thread.  */
++                      may_suspend_main (1);
++#endif
++                      /* We successfully started the new command.
++                         Loop to reap more children.  */
++                      continue;
++                    }
+                 }
+ 
+               if (c->file->update_status != us_success)
+@@ -972,6 +1056,11 @@
+ 
+       unblock_sigs ();
+ 
++#ifdef WINDOWS32
++      /* Main thread may be suspended by the Ctrl-C handler thread.  */
++      may_suspend_main (1);
++#endif
++
+       /* If the job failed, and the -k flag was not given, die,
+          unless we are already in the process of dying.  */
+       if (!err && child_failed && !dontcare && !keep_going_flag &&
+diff -Naur make-4.2.1/main.c make-4.2.1-patched/main.c
+--- make-4.2.1/main.c	2016-05-31 10:17:26.000000000 +0300
++++ make-4.2.1-patched/main.c	2017-06-02 18:10:29.047923600 +0300
+@@ -1058,6 +1058,12 @@
+   jobserver_auth = NULL;
+ }
+ 
++#ifdef WINDOWS32
++/* defined in job.c */
++extern void create_susp_main_event (void);
++extern void delete_susp_main_event (void);
++#endif
++
+ #ifdef _AMIGA
+ int
+ main (int argc, char **argv)
+@@ -1078,6 +1084,7 @@
+   const char *windows32_path = NULL;
+ 
+   SetUnhandledExceptionFilter (handle_runtime_exceptions);
++  create_susp_main_event ();
+ 
+   /* start off assuming we have no shell */
+   unixy_shell = 0;
+@@ -3473,6 +3480,10 @@
+           int _x UNUSED;
+           _x = chdir (directory_before_chdir);
+         }
++
++#ifdef WINDOWS32
++      delete_susp_main_event ();
++#endif
+     }
+ 
+   exit (status);
