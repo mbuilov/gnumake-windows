@@ -1,40 +1,19 @@
-diff -Naur make-4.2.1-orig/expand.c r1/make-4.2.1/expand.c
---- make-4.2.1-orig/expand.c	2016-05-22 00:22:32.000000000 +0400
-+++ r1/make-4.2.1/expand.c	2017-05-27 17:01:55.561940644 +0400
-@@ -151,6 +151,8 @@
-   return value;
- }
- 
-+#define CMPSTR(n,l,c) ( sizeof(c "") - 1 == (l) && memcmp(n, c, sizeof(c "") - 1) == 0 )
-+
- /* Expand a simple reference to variable NAME, which is LENGTH chars long.  */
- 
- #ifdef __GNUC__
-@@ -165,7 +167,22 @@
-   v = lookup_variable (name, length);
+diff -Naur make-4.2.1/expand.c make-4.2.1-modified/expand.c
+--- make-4.2.1/expand.c	2017-06-02 18:52:04.803295400 +0300
++++ make-4.2.1-modified/expand.c	2017-06-02 18:52:05.683296700 +0300
+@@ -166,6 +166,11 @@
  
    if (v == 0)
--    warn_undefined (name, length);
-+    {
-+      if (
-+        !CMPSTR(name, length, "GNUMAKEFLAGS") &&
-+        !CMPSTR(name, length, "MAKEFLAGS"))
-+        {
-+          warn_undefined (name, length);
-+        }
-+    }
+     warn_undefined (name, length);
 +  else if (v->origin == o_env &&
-+    strcmp("GNUMAKEFLAGS", v->name) &&
-+    strcmp("MAKEOVERRIDES", v->name) &&
-+    strcmp("MAKEFLAGS", v->name) &&
-+    strcmp("MAKELEVEL", v->name))
++    strcmp("GNUMAKEFLAGS", v->name))
 +    {
 +      warn_env (v->name, v->length);
 +    }
  
    /* If there's no variable by that name or it has no value, stop now.  */
    if (v == 0 || (*v->value == '\0' && !v->append))
-@@ -323,6 +340,8 @@
+@@ -323,6 +328,8 @@
                      v = lookup_variable (beg, colon - beg);
                      if (v == 0)
                        warn_undefined (beg, colon - beg);
@@ -43,9 +22,9 @@ diff -Naur make-4.2.1-orig/expand.c r1/make-4.2.1/expand.c
  
                      /* If the variable is not empty, perform the
                         substitution.  */
-diff -Naur make-4.2.1-orig/function.c r1/make-4.2.1/function.c
---- make-4.2.1-orig/function.c	2016-05-22 00:22:32.000000000 +0400
-+++ r1/make-4.2.1/function.c	2017-05-27 17:00:49.400772402 +0400
+diff -Naur make-4.2.1/function.c make-4.2.1-modified/function.c
+--- make-4.2.1/function.c	2016-05-21 23:22:32.000000000 +0300
++++ make-4.2.1-modified/function.c	2017-06-02 18:50:50.383191300 +0300
 @@ -497,12 +497,20 @@
    struct variable *v = lookup_variable (argv[0], strlen (argv[0]));
  
@@ -97,9 +76,9 @@ diff -Naur make-4.2.1-orig/function.c r1/make-4.2.1/function.c
  
    if (v == 0 || *v->value == '\0')
      return o;
-diff -Naur make-4.2.1-orig/read.c r1/make-4.2.1/read.c
---- make-4.2.1-orig/read.c	2016-05-22 00:22:32.000000000 +0400
-+++ r1/make-4.2.1/read.c	2017-05-27 17:00:49.403772365 +0400
+diff -Naur make-4.2.1/read.c make-4.2.1-modified/read.c
+--- make-4.2.1/read.c	2016-05-21 23:22:32.000000000 +0300
++++ make-4.2.1-modified/read.c	2017-06-02 18:50:50.383191300 +0300
 @@ -818,7 +818,13 @@
                  {
                    struct variable *v = lookup_variable (p, l);
@@ -109,7 +88,7 @@ diff -Naur make-4.2.1-orig/read.c r1/make-4.2.1/read.c
 +                      warn_undefined (p, l);
 +                      v = define_variable_global (p, l, "", o_file, 0, fstart);
 +                    }
-+                  else if (v->origin == o_env)
++                  else if (v->origin == o_env && exporting)
 +                    warn_env (v->name, v->length);
 +
                    v->export = exporting ? v_export : v_noexport;
@@ -126,9 +105,9 @@ diff -Naur make-4.2.1-orig/read.c r1/make-4.2.1/read.c
  
        conditionals->ignoring[o] =
          ((v != 0 && *v->value != '\0') == (cmdtype == c_ifndef));
-diff -Naur make-4.2.1-orig/variable.c r1/make-4.2.1/variable.c
---- make-4.2.1-orig/variable.c	2016-05-22 00:22:32.000000000 +0400
-+++ r1/make-4.2.1/variable.c	2017-05-27 17:03:25.665807885 +0400
+diff -Naur make-4.2.1/variable.c make-4.2.1-modified/variable.c
+--- make-4.2.1/variable.c	2016-05-21 23:22:32.000000000 +0300
++++ make-4.2.1-modified/variable.c	2017-06-02 18:50:50.383191300 +0300
 @@ -1197,7 +1197,11 @@
           The value is set IFF the variable is not defined yet. */
        v = lookup_variable (varname, strlen (varname));
@@ -180,9 +159,9 @@ diff -Naur make-4.2.1-orig/variable.c r1/make-4.2.1/variable.c
                  var->flavor = f_shell;
                  break;
                default:
-diff -Naur make-4.2.1-orig/variable.h r1/make-4.2.1/variable.h
---- make-4.2.1-orig/variable.h	2016-05-22 00:22:32.000000000 +0400
-+++ r1/make-4.2.1/variable.h	2017-05-27 17:00:49.407772314 +0400
+diff -Naur make-4.2.1/variable.h make-4.2.1-modified/variable.h
+--- make-4.2.1/variable.h	2016-05-21 23:22:32.000000000 +0300
++++ make-4.2.1-modified/variable.h	2017-06-02 18:50:50.393191300 +0300
 @@ -225,6 +225,14 @@
                                         (int)(l), (n));                  \
                                }while(0)
