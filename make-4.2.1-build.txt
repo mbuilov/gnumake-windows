@@ -1,4 +1,4 @@
-How to build native gnumake.exe for Windows
+Instructions for building native gnumake.exe for Windows
 
 From cygwin or other unix shell:
 
@@ -7,13 +7,24 @@ From cygwin or other unix shell:
 3) go to sources:    cd make-4.2.1
 4) patch make:
 
- - fix bug under Windows
+ - fix bugs under Windows
   patch -Np1 -i ../make-4.2.1-sub_proc.patch
+  patch -Np1 -i ../make-4.2.1-win32-ctrl-c.patch
 
  - optional optimization patches
   patch -Np1 -i ../make-4.2.1-expand.patch
   patch -Np1 -i ../make-4.2.1-sort.patch
   patch -Np1 -i ../make-4.2.1-filter.patch
+
+ *** development patches for makefile writers ***
+
+ - show warnings about use of environment variables in makefiles
+  patch -Np1 -i ../make-4.2.1-warn-env.patch
+
+ - disable builtin rules/variables, show warnings about
+   use of undefined variables in makefiles
+   (always run with -rR --warn-undefined-variables)
+  patch -Np1 -i ../make-4.2.1-no-builtin-warn-undef.patch
 
 5) run dos prompt:   cmd.exe /c "start cmd.exe"
 6) setup compiler:   "c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86_amd64
