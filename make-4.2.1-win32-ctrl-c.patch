@@ -39,7 +39,7 @@ diff -Naur make-4.2.1/commands.c make-4.2.1-modified/commands.c
 -        }
 -    }
 +  /* Wait until main thread releases resources and goes to sleep.  */
-+  wait_until_main_thread_sleeps();
++  wait_until_main_thread_sleeps ();
  #endif
    handling_fatal_signal = 1;
  
@@ -69,7 +69,7 @@ diff -Naur make-4.2.1/job.c make-4.2.1-modified/job.c
  
 +#ifdef WINDOWS32
 +
-+/* It non-zero, then Main thread should release resources and go to sleep.  */ 
++/* If non-zero, then Main thread should release resources and go to sleep.  */ 
 +int main_thread_should_sleep = 0;
 +
 +/* Event object on which Ctrl-C handler thread will wait
