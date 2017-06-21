@@ -1,0 +1,146 @@
+diff -Naur make-4.2.1-orig/output.c make-4.2.1-patched/output.c
+--- make-4.2.1-orig/output.c	2016-05-21 23:22:32.000000000 +0300
++++ make-4.2.1-patched/output.c	2017-06-21 13:20:20.283132500 +0300
+@@ -52,6 +52,132 @@
+ # define STREAM_OK(_s) 1
+ #endif
+ 
++#ifdef WINDOWS32
++static WORD default_console_attrs;
++static int console_attrs_changed = 0;
++
++/* Print text to console window interpreting
++   ANSI control codes for changing text colors.
++
++   Note: may change current console colors.
++
++   Returns remaining text to output.  */
++static const char *
++puts_in_color (int is_err, const char *msg, FILE *f)
++{
++  HANDLE h;
++  CONSOLE_SCREEN_BUFFER_INFO info;
++  WORD attrs, cattrs, dattrs;
++  const char *m, *p;
++  int writing_to_console;
++
++  /* ANSI -> Windows colors mapping.  */
++  static const DWORD color_map[8] = {
++    0,
++    FOREGROUND_RED,
++    FOREGROUND_GREEN,
++    FOREGROUND_RED | FOREGROUND_GREEN,
++    FOREGROUND_BLUE,
++    FOREGROUND_RED | FOREGROUND_BLUE,
++    FOREGROUND_GREEN | FOREGROUND_BLUE,
++    FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE
++  };
++
++  h = GetStdHandle (is_err ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
++
++  writing_to_console = GetFileType (h) == FILE_TYPE_CHAR;
++
++  if (writing_to_console && !GetConsoleScreenBufferInfo (h, &info))
++    writing_to_console = 0;
++
++  dattrs = cattrs = attrs = info.wAttributes;
++
++  if (console_attrs_changed)
++    dattrs = default_console_attrs;
++
++  for (m = msg;;)
++    {
++      /* Search for ESC[ sequence.  */
++      p = strstr (m, "\x1b[");
++
++      if (p == 0)
++        break;
++
++      if (p != m)
++        {
++          m += fwrite (m, 1, (int)(p - m), f);
++          if (p != m)
++            break; /* Writing failed, print the rest as is.  */
++        }
++
++      /* Parse only next escape sequences:
++         0, 1, 2, 30-37, 40-47.             */
++      for (p += 2;;)
++        {
++          /* Skip leading zeros.  */
++          while ('0' == *p)
++            p++;
++
++          if ('1' == *p)
++            attrs |= FOREGROUND_INTENSITY;
++          else if ('2' == *p)
++            attrs &= ~FOREGROUND_INTENSITY;
++          else if ('3' == *p)
++            {
++              p++;
++              if ('0' <= *p && *p <= '7')
++                {
++                  attrs &= ~(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
++                  attrs |= color_map[*p - '0'];
++                }
++            }
++          else if ('4' == *p)
++            {
++              p++;
++              if ('0' <= *p && *p <= '7')
++                {
++                  attrs &= ~(BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE);
++                  attrs |= color_map[*p - '0'] << 4;
++                }
++            }
++          else if ('m' == *p || ';' == *p)
++            attrs = dattrs;
++
++          /* Search for the end of escape sequence.  */
++          while (*p && 'm' != *p && ';' != *p)
++            p++;
++
++          if (';' == *p)
++            p++;
++          else if ('m' == *p)
++            break;
++          else
++            return m; /* Unterminated escape sequence - print it as is.  */
++        }
++
++      m = p + 1;
++
++      if (writing_to_console && attrs != cattrs)
++        {
++          /* Save default console attributes.  */
++          if (!console_attrs_changed)
++            {
++              console_attrs_changed = 1;
++              default_console_attrs = dattrs;
++            }
++
++          /* Flush old text to not color it with new colors.  */
++          fflush (f);
++
++          cattrs = attrs;
++          SetConsoleTextAttribute (h, attrs);
++        }
++    }
++
++  return m;
++}
++#endif /* WINDOWS32 */
++
+ /* Write a string to the current STDOUT or STDERR.  */
+ static void
+ _outputs (struct output *out, int is_err, const char *msg)
+@@ -59,6 +185,9 @@
+   if (! out || ! out->syncout)
+     {
+       FILE *f = is_err ? stderr : stdout;
++#ifdef WINDOWS32
++      msg = puts_in_color (is_err, msg, f);
++#endif
+       fputs (msg, f);
+       fflush (f);
+     }

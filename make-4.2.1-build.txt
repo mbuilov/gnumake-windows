@@ -15,6 +15,10 @@ From cygwin or other unix shell:
   patch -Np1 -i ../make-4.2.1-expand.patch
   patch -Np1 -i ../make-4.2.1-sort.patch
   patch -Np1 -i ../make-4.2.1-filter.patch
+  patch -Np1 -i ../make-4.2.1-error.patch
+
+ - support for ANSI color escape sequences in Windows console
+  patch -Np1 -i ../make-4.2.1-win32-colors.patch
 
  *** development patches for makefile writers ***
 
