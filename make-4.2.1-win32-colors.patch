@@ -1,6 +1,5 @@
-diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
---- make-4.2.1/output.c	2017-06-22 14:11:40.178687900 +0300
-+++ make-4.2.1-modified/output.c	2017-06-22 14:09:01.998466400 +0300
+--- make-4.2.1/output.c	2017-06-22 14:37:46.724221300 +0300
++++ make-4.2.1-modified/output.c	2017-06-22 14:40:04.294421700 +0300
 @@ -52,6 +52,210 @@
  # define STREAM_OK(_s) 1
  #endif
@@ -234,12 +233,12 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
    int prev_mode;
  
    /* "from" is opened by open_tmpfd, which does it in binary mode, so
-@@ -234,16 +446,60 @@
+@@ -234,16 +446,62 @@
    while (1)
      {
        int len;
 +#ifdef WINDOWS32
-+      char *dst, *end, *w;
++      char *dst, *end;
 +      int space;
 +
 +      dst = buffer + buffer_data;
@@ -259,14 +258,16 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
 +      end = dst + len;
 +      *end = '\0';
 +
-+      w = write_in_color (buffer, end, to);
-+      if (!w)
-+        {
-+          perror ("fwrite()");
-+          break;
-+        }
++      {
++        const char *w = write_in_color (buffer, end, to);
++        if (!w)
++          {
++            perror ("fwrite()");
++            break;
++          }
 +
-+      buffer_data = (int)(end - w);
++        buffer_data = (int)(end - w);
++      }
 +
 +      if (buffer_data != sizeof (buffer) - 1)
 +        {
@@ -295,7 +296,7 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
        fflush (to);
  #ifdef WINDOWS32
        /* Check if Make was interrupted.  */
-@@ -261,6 +517,9 @@
+@@ -261,6 +519,9 @@
      }
  
  #ifdef WINDOWS32
