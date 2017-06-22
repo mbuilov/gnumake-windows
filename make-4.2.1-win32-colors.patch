@@ -1,3 +1,4 @@
+diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
 --- make-4.2.1/output.c	2017-06-22 14:37:46.724221300 +0300
 +++ make-4.2.1-modified/output.c	2017-06-22 14:40:04.294421700 +0300
 @@ -52,6 +52,210 @@
@@ -306,3 +307,16 @@
    /* Switch "to" back to its original mode, so that log messages by
       Make have the same EOL format as without --output-sync.  */
    _setmode (fileno (to), prev_mode);
+diff -Naur make-4.2.1/main.c make-4.2.1-modified/main.c
+--- make-4.2.1/main.c	2016-05-31 10:17:26.000000000 +0300
++++ make-4.2.1-modified/main.c	2017-06-22 15:57:22.859158100 +0300
+@@ -1346,6 +1346,9 @@
+ #ifdef MAKE_LOAD
+                            " load"
+ #endif
++#ifdef WINDOWS32
++                           " ansi-colors"
++#endif
+                            ;
+ 
+     define_variable_cname (".FEATURES", features, o_default, 0);
