@@ -1,7 +1,7 @@
-diff -Naur make-4.2.1-orig/output.c make-4.2.1-patched/output.c
---- make-4.2.1-orig/output.c	2016-05-21 23:22:32.000000000 +0300
-+++ make-4.2.1-patched/output.c	2017-06-21 13:20:20.283132500 +0300
-@@ -52,6 +52,132 @@
+diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
+--- make-4.2.1/output.c	2017-06-22 14:11:40.178687900 +0300
++++ make-4.2.1-modified/output.c	2017-06-22 14:09:01.998466400 +0300
+@@ -52,6 +52,210 @@
  # define STREAM_OK(_s) 1
  #endif
  
@@ -12,16 +12,21 @@ diff -Naur make-4.2.1-orig/output.c make-4.2.1-patched/output.c
 +/* Print text to console window interpreting
 +   ANSI control codes for changing text colors.
 +
++   Parameters:
++
++     msg - nil-terminated text
++     f   - either stderr or stdout
++
 +   Note: may change current console colors.
 +
 +   Returns remaining text to output.  */
 +static const char *
-+puts_in_color (int is_err, const char *msg, FILE *f)
++puts_in_color (const char *msg, FILE *f)
 +{
 +  HANDLE h;
 +  CONSOLE_SCREEN_BUFFER_INFO info;
 +  WORD attrs, cattrs, dattrs;
-+  const char *m, *p;
++  const char *m;
 +  int writing_to_console;
 +
 +  /* ANSI -> Windows colors mapping.  */
@@ -36,7 +41,7 @@ diff -Naur make-4.2.1-orig/output.c make-4.2.1-patched/output.c
 +    FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE
 +  };
 +
-+  h = GetStdHandle (is_err ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
++  h = GetStdHandle (stderr == f ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
 +
 +  writing_to_console = GetFileType (h) == FILE_TYPE_CHAR;
 +
@@ -51,7 +56,7 @@ diff -Naur make-4.2.1-orig/output.c make-4.2.1-patched/output.c
 +  for (m = msg;;)
 +    {
 +      /* Search for ESC[ sequence.  */
-+      p = strstr (m, "\x1b[");
++      const char *p = strstr (m, "\x1b[");
 +
 +      if (p == 0)
 +        break;
@@ -63,8 +68,8 @@ diff -Naur make-4.2.1-orig/output.c make-4.2.1-patched/output.c
 +            break; /* Writing failed, print the rest as is.  */
 +        }
 +
-+      /* Parse only next escape sequences:
-+         0, 1, 2, 30-37, 40-47.             */
++      /* This code recognizes only next escape sequences:
++         0, 1, 2, 30-37, 39, 40-47, 49, 90-97, 100-107.  */
 +      for (p += 2;;)
 +        {
 +          /* Skip leading zeros.  */
@@ -72,32 +77,52 @@ diff -Naur make-4.2.1-orig/output.c make-4.2.1-patched/output.c
 +            p++;
 +
 +          if ('1' == *p)
-+            attrs |= FOREGROUND_INTENSITY;
++            {
++              if ('0' == p[1] && '0' <= p[2] && p[2] <= '7')
++                {
++                  /* 100-107 - set background color, high intensity.  */
++                  attrs &= ~(BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE);
++                  attrs |= (color_map[p[2] - '0'] << 4) | BACKGROUND_INTENSITY;
++                }
++              else
++                /* 1 - increased font intensity.  */
++                attrs |= FOREGROUND_INTENSITY;
++            }
 +          else if ('2' == *p)
++            /* 2 - decreased font intensity.  */
 +            attrs &= ~FOREGROUND_INTENSITY;
 +          else if ('3' == *p)
 +            {
-+              p++;
-+              if ('0' <= *p && *p <= '7')
-+                {
-+                  attrs &= ~(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
-+                  attrs |= color_map[*p - '0'];
-+                }
++              /* 30-37 - set font color
++                 else  - reset font color to default.  */
++              attrs &= ~(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
++              if ('0' <= p[1] && p[1] <= '7')
++                attrs |= color_map[p[1] - '0'];
++              else
++                attrs |= dattrs & (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 +            }
 +          else if ('4' == *p)
 +            {
-+              p++;
-+              if ('0' <= *p && *p <= '7')
-+                {
-+                  attrs &= ~(BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE);
-+                  attrs |= color_map[*p - '0'] << 4;
-+                }
++              /* 40-47 - set background color
++                 else  - reset background color to default.  */
++              attrs &= ~(BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE);
++              if ('0' <= p[1] && p[1] <= '7')
++                attrs |= color_map[p[1] - '0'] << 4;
++              else
++                attrs |= dattrs & (BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE);
++            }
++          else if ('9' == *p && '0' <= p[1] && p[1] <= '7')
++            {
++              /* 90-97 - set font color, high intensity.  */
++              attrs &= ~(FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
++              attrs |= color_map[p[1] - '0'] | FOREGROUND_INTENSITY;
 +            }
 +          else if ('m' == *p || ';' == *p)
++            /* Reset attributes.  */
 +            attrs = dattrs;
 +
 +          /* Search for the end of escape sequence.  */
-+          while (*p && 'm' != *p && ';' != *p)
++          while ('\0' != *p && 'm' != *p && ';' != *p)
 +            p++;
 +
 +          if (';' == *p)
@@ -129,18 +154,154 @@ diff -Naur make-4.2.1-orig/output.c make-4.2.1-patched/output.c
 +
 +  return m;
 +}
++
++static const char *
++write_in_color(const char *buffer, const char *end, FILE *to)
++{
++  char const *m;
++
++  m = puts_in_color (buffer, to);
++
++  /* If everything was written, we're done.  */
++  if ('\0' == *m)
++    return m;
++
++  /* If there is unterminated escape
++     sequence - read more later.  */
++  if ('\x1b' == *m && '[' == m[1])
++    return m;
++
++  /* ESC at end may denote a beginning of
++     escape sequence - process it later.  */
++  if ('\x1b' == end[-1])
++    end--;
++
++  if (m != end)
++    {
++      if (fwrite (m, (int)(end - m), 1, to) < 1)
++        return 0;
++    }
++
++  return end;
++}
++
++static void
++restore_console_colors (void)
++{
++  HANDLE h;
++
++  if (console_attrs_changed)
++    {
++      /* Check if stdout is printed to the console.  */
++      h = GetStdHandle (STD_OUTPUT_HANDLE);
++
++      if (GetFileType (h) != FILE_TYPE_CHAR)
++        {
++          /* At last, check if stderr is printed to the console.  */
++          h = GetStdHandle (STD_ERROR_HANDLE);
++
++          if (GetFileType (h) != FILE_TYPE_CHAR)
++            return;
++        }
++
++      SetConsoleTextAttribute (h, default_console_attrs);
++    }
++}
 +#endif /* WINDOWS32 */
 +
  /* Write a string to the current STDOUT or STDERR.  */
  static void
  _outputs (struct output *out, int is_err, const char *msg)
-@@ -59,6 +185,9 @@
+@@ -59,6 +263,9 @@
    if (! out || ! out->syncout)
      {
        FILE *f = is_err ? stderr : stdout;
 +#ifdef WINDOWS32
-+      msg = puts_in_color (is_err, msg, f);
++      msg = puts_in_color (msg, f);
 +#endif
        fputs (msg, f);
        fflush (f);
      }
+@@ -221,6 +428,11 @@
+   static char buffer[8192];
+ 
+ #ifdef WINDOWS32
++  static int buffer_data = 0;
++
++  /* Assume worst.  */
++  int success = 0;
++
+   int prev_mode;
+ 
+   /* "from" is opened by open_tmpfd, which does it in binary mode, so
+@@ -234,16 +446,60 @@
+   while (1)
+     {
+       int len;
++#ifdef WINDOWS32
++      char *dst, *end, *w;
++      int space;
++
++      dst = buffer + buffer_data;
++      space = sizeof (buffer) - buffer_data - 1;
++      EINTRLOOP (len, read (from, dst, space));
++      if (len == 0)
++        success = 1;
++#else
+       EINTRLOOP (len, read (from, buffer, sizeof (buffer)));
++#endif
+       if (len < 0)
+         perror ("read()");
+       if (len <= 0)
+         break;
++
++#ifdef WINDOWS32
++      end = dst + len;
++      *end = '\0';
++
++      w = write_in_color (buffer, end, to);
++      if (!w)
++        {
++          perror ("fwrite()");
++          break;
++        }
++
++      buffer_data = (int)(end - w);
++
++      if (buffer_data != sizeof (buffer) - 1)
++        {
++          if (buffer_data != 0)
++            memmove (buffer, end - buffer_data, buffer_data);
++        }
++      else
++        {
++          /* Buffer is full because of too long escape sequence
++             or 0 inside text. Dump buffer as is.  */
++          len = sizeof (buffer) - 1;
++          buffer_data = 0;
++
++#endif /* WINDOWS32 */
++
+       if (fwrite (buffer, len, 1, to) < 1)
+         {
+           perror ("fwrite()");
+           break;
+         }
++
++#ifdef WINDOWS32
++        }
++#endif
++
+       fflush (to);
+ #ifdef WINDOWS32
+       /* Check if Make was interrupted.  */
+@@ -261,6 +517,9 @@
+     }
+ 
+ #ifdef WINDOWS32
++  if (!success)
++    restore_console_colors ();
++
+   /* Switch "to" back to its original mode, so that log messages by
+      Make have the same EOL format as without --output-sync.  */
+   _setmode (fileno (to), prev_mode);
