@@ -1,19 +1,17 @@
-diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
---- make-4.2.1/output.c	2017-06-22 14:37:46.724221300 +0300
-+++ make-4.2.1-modified/output.c	2017-06-22 14:40:04.294421700 +0300
-@@ -52,6 +52,210 @@
+--- make-4.2.1/output.c	2017-06-26 14:42:03.737500200 +0300
++++ make-4.2.1-modified/output.c	2017-06-26 14:48:22.883186100 +0300
+@@ -52,6 +52,215 @@
  # define STREAM_OK(_s) 1
  #endif
  
 +#ifdef WINDOWS32
 +static WORD default_console_attrs;
-+static int console_attrs_changed = 0;
++static int console_attrs_saved = 0;
 +
-+/* Print text to console window interpreting
-+   ANSI control codes for changing text colors.
++/* Print text to console window interpreting ANSI control codes for changing
++   text colors.  If printing to file, just strip off these codes.
 +
 +   Parameters:
-+
 +     msg - nil-terminated text
 +     f   - either stderr or stdout
 +
@@ -23,12 +21,6 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
 +static const char *
 +puts_in_color (const char *msg, FILE *f)
 +{
-+  HANDLE h;
-+  CONSOLE_SCREEN_BUFFER_INFO info;
-+  WORD attrs, cattrs, dattrs;
-+  const char *m;
-+  int writing_to_console;
-+
 +  /* ANSI -> Windows colors mapping.  */
 +  static const DWORD color_map[8] = {
 +    0,
@@ -41,25 +33,40 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
 +    FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE
 +  };
 +
-+  h = GetStdHandle (stderr == f ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
++  HANDLE h = INVALID_HANDLE_VALUE;
++  int writing_to_console = -1;
++  const char *m = msg;
++  WORD attrs, cattrs, dattrs;
 +
-+  writing_to_console = GetFileType (h) == FILE_TYPE_CHAR;
++  attrs = cattrs = dattrs = 0;
 +
-+  if (writing_to_console && !GetConsoleScreenBufferInfo (h, &info))
-+    writing_to_console = 0;
-+
-+  dattrs = cattrs = attrs = info.wAttributes;
-+
-+  if (console_attrs_changed)
-+    dattrs = default_console_attrs;
-+
-+  for (m = msg;;)
++  while (1)
 +    {
 +      /* Search for ESC[ sequence.  */
 +      const char *p = strstr (m, "\x1b[");
 +
 +      if (p == 0)
 +        break;
++
++      if (writing_to_console == -1)
++        {
++          CONSOLE_SCREEN_BUFFER_INFO info;
++
++          h = GetStdHandle (stderr == f ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE);
++
++          if (GetFileType (h) == FILE_TYPE_CHAR
++              && GetConsoleScreenBufferInfo (h, &info))
++            {
++              dattrs = cattrs = attrs = info.wAttributes;
++
++              if (console_attrs_saved)
++                dattrs = default_console_attrs;
++
++              writing_to_console = 1;
++            }
++          else
++            writing_to_console = 0;
++        }
 +
 +      if (p != m)
 +        {
@@ -68,9 +75,11 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
 +            break; /* Writing failed, print the rest as is.  */
 +        }
 +
++      p += 2;
++
 +      /* This code recognizes only next escape sequences:
 +         0, 1, 2, 30-37, 39, 40-47, 49, 90-97, 100-107.  */
-+      for (p += 2;;)
++      while (1)
 +        {
 +          /* Skip leading zeros.  */
 +          while ('0' == *p)
@@ -138,9 +147,9 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
 +      if (writing_to_console && attrs != cattrs)
 +        {
 +          /* Save default console attributes.  */
-+          if (!console_attrs_changed)
++          if (!console_attrs_saved)
 +            {
-+              console_attrs_changed = 1;
++              console_attrs_saved = 1;
 +              default_console_attrs = dattrs;
 +            }
 +
@@ -158,9 +167,7 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
 +static const char *
 +write_in_color(const char *buffer, const char *end, FILE *to)
 +{
-+  char const *m;
-+
-+  m = puts_in_color (buffer, to);
++  char const *m = puts_in_color (buffer, to);
 +
 +  /* If everything was written, we're done.  */
 +  if ('\0' == *m)
@@ -176,11 +183,8 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
 +  if ('\x1b' == end[-1])
 +    end--;
 +
-+  if (m != end)
-+    {
-+      if (fwrite (m, (int)(end - m), 1, to) < 1)
-+        return 0;
-+    }
++  if (m != end && fwrite (m, (int)(end - m), 1, to) < 1)
++    return 0;
 +
 +  return end;
 +}
@@ -190,7 +194,7 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
 +{
 +  HANDLE h;
 +
-+  if (console_attrs_changed)
++  if (console_attrs_saved)
 +    {
 +      /* Check if stdout is printed to the console.  */
 +      h = GetStdHandle (STD_OUTPUT_HANDLE);
@@ -212,7 +216,7 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
  /* Write a string to the current STDOUT or STDERR.  */
  static void
  _outputs (struct output *out, int is_err, const char *msg)
-@@ -59,6 +263,9 @@
+@@ -59,6 +268,9 @@
    if (! out || ! out->syncout)
      {
        FILE *f = is_err ? stderr : stdout;
@@ -222,7 +226,7 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
        fputs (msg, f);
        fflush (f);
      }
-@@ -221,6 +428,11 @@
+@@ -221,6 +433,11 @@
    static char buffer[8192];
  
  #ifdef WINDOWS32
@@ -234,7 +238,7 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
    int prev_mode;
  
    /* "from" is opened by open_tmpfd, which does it in binary mode, so
-@@ -234,16 +446,62 @@
+@@ -234,16 +451,62 @@
    while (1)
      {
        int len;
@@ -297,7 +301,7 @@ diff -Naur make-4.2.1/output.c make-4.2.1-modified/output.c
        fflush (to);
  #ifdef WINDOWS32
        /* Check if Make was interrupted.  */
-@@ -261,6 +519,9 @@
+@@ -264,6 +527,9 @@
      }
  
  #ifdef WINDOWS32

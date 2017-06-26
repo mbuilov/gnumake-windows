@@ -11,6 +11,12 @@ From cygwin or other unix shell:
   patch -Np1 -i ../make-4.2.1-sub_proc.patch
   patch -Np1 -i ../make-4.2.1-win32-ctrl-c.patch
 
+ - optionally, fix inconsistency with fake function arguments, see http://savannah.gnu.org/bugs/?49841
+  patch -Np1 -i ../make-4.2.1-SV49841.patch
+ 
+ - optionally, add ability to enable/disable warnings about use of undefined numeric variables (function arguments)
+  patch -Np1 -i ../make-4.2.1-warn-noargs.patch
+
  - optional optimization patches
   patch -Np1 -i ../make-4.2.1-expand.patch
   patch -Np1 -i ../make-4.2.1-sort.patch
@@ -25,9 +31,10 @@ From cygwin or other unix shell:
  - show warnings about use of environment variables in makefiles
   patch -Np1 -i ../make-4.2.1-warn-env.patch
 
- - disable builtin rules/variables, show warnings about
-   use of undefined variables in makefiles
-   (always run with -rR --warn-undefined-variables)
+ - disable builtin rules/variables, show warnings about use of
+   undefined variables in makefiles, except function arguments
+   (always run with -rR --warn-undefined-variables=noargs)
+   (note: ../make-4.2.1-warn-noargs.patch must be applied)
   patch -Np1 -i ../make-4.2.1-no-builtin-warn-undef.patch
 
 5) run dos prompt:   cmd.exe /c "start cmd.exe"
