@@ -1,6 +1,6 @@
 Instructions for building native gnumake.exe for Windows
 
-From cygwin or other unix shell:
+From cygwin or other unix shell in this directory:
 
 1) get archive:      wget http://ftp.gnu.org/gnu/make/make-4.2.1.tar.bz2
 2) unpack archive:   tar xf make-4.2.1.tar.bz2
