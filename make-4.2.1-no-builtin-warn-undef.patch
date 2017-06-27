@@ -1,6 +1,6 @@
 diff -Naur make-4.2.1/main.c make-4.2.1-modified/main.c
---- make-4.2.1/main.c	2017-06-26 18:01:28.691856400 +0300
-+++ make-4.2.1-modified/main.c	2017-06-26 18:03:04.760351200 +0300
+--- make-4.2.1/main.c	2017-06-27 12:19:41.963875100 +0300
++++ make-4.2.1-modified/main.c	2017-06-27 12:20:10.062482200 +0300
 @@ -211,8 +211,8 @@
  
  /* Nonzero means do not use any of the builtin rules (-r) / variables (-R).  */
@@ -12,12 +12,12 @@ diff -Naur make-4.2.1/main.c make-4.2.1-modified/main.c
  
  /* Nonzero means keep going even if remaking some file fails (-k).  */
  
-@@ -309,7 +309,7 @@
+@@ -308,7 +308,7 @@
+ /* If nonzero, we should print a warning message
     for each reference to an undefined variable.  */
  
- static char *warn_undefined_variables_option = 0;
--int warn_undefined_variables_flag = 0;
-+int warn_undefined_variables_flag = WARN_UNDEFINED_BASE;
+-int warn_undefined_variables_flag;
++int warn_undefined_variables_flag = 1;
  
- /* If nonzero, always build all targets, regardless of whether
-    they appear out of date or not.  */
+ static char *warn_undefined_variables_option = 0;
+ 

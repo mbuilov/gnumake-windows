@@ -1,17 +1,16 @@
 diff -Naur make-4.2.1/main.c make-4.2.1-modified/main.c
 --- make-4.2.1/main.c	2016-05-31 10:17:26.000000000 +0300
-+++ make-4.2.1-modified/main.c	2017-06-26 17:21:41.871338100 +0300
-@@ -308,7 +308,8 @@
- /* If nonzero, we should print a warning message
-    for each reference to an undefined variable.  */
++++ make-4.2.1-modified/main.c	2017-06-27 12:18:02.541188400 +0300
+@@ -310,6 +310,8 @@
  
--int warn_undefined_variables_flag;
+ int warn_undefined_variables_flag;
+ 
 +static char *warn_undefined_variables_option = 0;
-+int warn_undefined_variables_flag = 0;
- 
++
  /* If nonzero, always build all targets, regardless of whether
     they appear out of date or not.  */
-@@ -407,7 +408,8 @@
+ 
+@@ -407,7 +409,8 @@
    -W FILE, --what-if=FILE, --new-file=FILE, --assume-new=FILE\n\
                                Consider FILE to be infinitely new.\n"),
      N_("\
@@ -21,16 +20,16 @@ diff -Naur make-4.2.1/main.c make-4.2.1-modified/main.c
      NULL
    };
  
-@@ -467,7 +469,7 @@
+@@ -467,7 +470,7 @@
      { CHAR_MAX+3, flag, &trace_flag, 1, 1, 0, 0, 0, "trace" },
      { CHAR_MAX+4, flag, &inhibit_print_directory_flag, 1, 1, 0, 0, 0,
        "no-print-directory" },
 -    { CHAR_MAX+5, flag, &warn_undefined_variables_flag, 1, 1, 0, 0, 0,
-+    { CHAR_MAX+5, string, &warn_undefined_variables_option, 1, 1, 0, "all", 0,
++    { CHAR_MAX+5, string, &warn_undefined_variables_option, 1, 1, 0, "noargs", 0,
        "warn-undefined-variables" },
      { CHAR_MAX+6, strlist, &eval_strings, 1, 0, 0, 0, 0, "eval" },
      { CHAR_MAX+7, string, &sync_mutex, 1, 1, 0, 0, 0, "sync-mutex" },
-@@ -811,6 +813,24 @@
+@@ -811,6 +814,24 @@
  #endif
  }
  
@@ -55,7 +54,7 @@ diff -Naur make-4.2.1/main.c make-4.2.1-modified/main.c
  #ifdef WINDOWS32
  
  #ifndef NO_OUTPUT_SYNC
-@@ -2979,6 +2999,7 @@
+@@ -2979,6 +3000,7 @@
    /* If there are any options that need to be decoded do it now.  */
    decode_debug_flags ();
    decode_output_sync_flags ();
@@ -65,7 +64,7 @@ diff -Naur make-4.2.1/main.c make-4.2.1-modified/main.c
  /* Decode switches from environment variable ENVAR (which is LEN chars long).
 diff -Naur make-4.2.1/variable.c make-4.2.1-modified/variable.c
 --- make-4.2.1/variable.c	2016-05-21 23:22:32.000000000 +0300
-+++ make-4.2.1-modified/variable.c	2017-06-26 17:19:47.479795300 +0300
++++ make-4.2.1-modified/variable.c	2017-06-27 12:17:29.481297500 +0300
 @@ -1800,3 +1800,22 @@
    free (path);
  }
@@ -91,7 +90,7 @@ diff -Naur make-4.2.1/variable.c make-4.2.1-modified/variable.c
 +}
 diff -Naur make-4.2.1/variable.h make-4.2.1-modified/variable.h
 --- make-4.2.1/variable.h	2016-05-21 23:22:32.000000000 +0300
-+++ make-4.2.1-modified/variable.h	2017-06-26 17:19:47.479795300 +0300
++++ make-4.2.1-modified/variable.h	2017-06-27 12:17:29.483297600 +0300
 @@ -216,13 +216,16 @@
  #define undefine_variable_global(n,l,o) \
            undefine_variable_in_set((n),(l),(o),NULL)

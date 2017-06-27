@@ -33,8 +33,7 @@ From cygwin or other unix shell in this directory:
 
  - disable builtin rules/variables, show warnings about use of
    undefined variables in makefiles, except function arguments
-   (always run with -rR --warn-undefined-variables=noargs)
-   (note: ../make-4.2.1-warn-noargs.patch must be applied)
+   (always run with -rR --warn-undefined-variables)
   patch -Np1 -i ../make-4.2.1-no-builtin-warn-undef.patch
 
 5) run dos prompt:   cmd.exe /c "start cmd.exe"
