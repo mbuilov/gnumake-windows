@@ -1,0 +1,12 @@
+--- make-4.3-orig/lib/getloadavg.c	2020-01-19 23:34:01.000000000 +0300
++++ make-4.3/lib/getloadavg.c	2020-01-21 16:55:21.479879400 +0300
+@@ -82,7 +82,9 @@
+ #include <stdlib.h>
+ 
+ #include <errno.h>
++#ifndef _MSC_VER
+ #include <stdbool.h>
++#endif
+ #include <stdio.h>
+ 
+ # include <sys/types.h>

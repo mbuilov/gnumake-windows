@@ -1,0 +1,110 @@
+--- make-4.3-orig/src/main.c	2020-01-21 15:10:42.545439100 +0300
++++ make-4.3/src/main.c	2020-01-21 15:11:02.763074600 +0300
+@@ -313,6 +313,8 @@
+ 
+ int warn_undefined_variables_flag;
+ 
++static char *warn_undefined_variables_option = 0;
++
+ /* If nonzero, always build all targets, regardless of whether
+    they appear out of date or not.  */
+ 
+@@ -412,7 +414,8 @@
+   -W FILE, --what-if=FILE, --new-file=FILE, --assume-new=FILE\n\
+                               Consider FILE to be infinitely new.\n"),
+     N_("\
+-  --warn-undefined-variables  Warn when an undefined variable is referenced.\n"),
++  --warn-undefined-variables[=TYPE]\n\
++                              Warn when an undefined variable is referenced.\n"),
+     NULL
+   };
+ 
+@@ -465,7 +468,7 @@
+     { CHAR_MAX+3, flag, &trace_flag, 1, 1, 0, 0, 0, "trace" },
+     { CHAR_MAX+4, flag, &inhibit_print_directory_flag, 1, 1, 0, 0, 0,
+       "no-print-directory" },
+-    { CHAR_MAX+5, flag, &warn_undefined_variables_flag, 1, 1, 0, 0, 0,
++    { CHAR_MAX+5, string, &warn_undefined_variables_option, 1, 1, 0, "noargs", 0,
+       "warn-undefined-variables" },
+     { CHAR_MAX+7, string, &sync_mutex, 1, 1, 0, 0, 0, "sync-mutex" },
+     { CHAR_MAX+8, flag_off, &silent_flag, 1, 1, 0, 0, &default_silent_flag, "no-silent" },
+@@ -805,6 +808,24 @@
+ #endif
+ }
+ 
++static void
++decode_warn_undefined_flags (void)
++{
++  if (warn_undefined_variables_option)
++    {
++      if (streq (warn_undefined_variables_option, "all"))
++        warn_undefined_variables_flag = WARN_UNDEFINED_BASE | WARN_UNDEFINED_ARGS;
++      else if (streq (warn_undefined_variables_option, "noargs"))
++        warn_undefined_variables_flag = WARN_UNDEFINED_BASE;
++      else if (streq (warn_undefined_variables_option, "args"))
++        warn_undefined_variables_flag = WARN_UNDEFINED_ARGS;
++      else
++        OS (fatal, NILF,
++            _("unknown warn-undefined-variables type '%s'"),
++            warn_undefined_variables_option);
++    }
++}
++
+ #ifdef WINDOWS32
+ 
+ #ifndef NO_OUTPUT_SYNC
+@@ -3015,6 +3036,7 @@
+   /* If there are any options that need to be decoded do it now.  */
+   decode_debug_flags ();
+   decode_output_sync_flags ();
++  decode_warn_undefined_flags ();
+ 
+   /* Perform any special switch handling.  */
+   run_silent = silent_flag;
+--- make-4.3-orig/src/variable.c	2020-01-21 15:10:42.545439100 +0300
++++ make-4.3/src/variable.c	2020-01-21 15:11:02.763074600 +0300
+@@ -1865,3 +1865,22 @@
+   free (path);
+ }
+ #endif
++
++void
++show_undefined_variable_warn (const char *name, size_t length)
++{
++  if (!(warn_undefined_variables_flag & WARN_UNDEFINED_BASE) ||
++      !(warn_undefined_variables_flag & WARN_UNDEFINED_ARGS))
++    {
++      /* $(call ...) arguments are named as $1,$2,$3 and so on,
++         check if variable name is numeric.  */
++      size_t i;
++      for (i = 0; i < length && ISDIGIT(name[i]); ++i);
++
++      if ((i == length && !(warn_undefined_variables_flag & WARN_UNDEFINED_ARGS)) ||
++          (i != length && !(warn_undefined_variables_flag & WARN_UNDEFINED_BASE)))
++          return;
++    }
++  error (reading_file, length, _("warning: undefined variable '%.*s'"),
++         (int)(length), name);
++}
+--- make-4.3-orig/src/variable.h	2020-01-21 15:10:42.545439100 +0300
++++ make-4.3/src/variable.h	2020-01-21 15:11:02.763074600 +0300
+@@ -233,13 +233,16 @@
+ #define undefine_variable_global(n,l,o) \
+           undefine_variable_in_set((n),(l),(o),NULL)
+ 
++void show_undefined_variable_warn (const char *name, size_t length);
++
++#define WARN_UNDEFINED_BASE  (0x001)
++#define WARN_UNDEFINED_ARGS  (0x002)
++
+ /* Warn that NAME is an undefined variable.  */
+ 
+ #define warn_undefined(n,l) do{\
+                               if (warn_undefined_variables_flag)        \
+-                                error (reading_file, (l),               \
+-                                       _("warning: undefined variable '%.*s'"), \
+-                                       (int)(l), (n));                  \
++                                show_undefined_variable_warn (n, l);    \
+                               }while(0)
+ 
+ char **target_environment (struct file *file);

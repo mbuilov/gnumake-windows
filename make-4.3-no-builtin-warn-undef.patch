@@ -1,0 +1,22 @@
+--- make-4.3-orig/src/main.c	2020-01-21 15:37:20.183889700 +0300
++++ make-4.3/src/main.c	2020-01-21 15:49:24.370361800 +0300
+@@ -213,8 +213,8 @@
+ 
+ /* Nonzero means do not use any of the builtin rules (-r) / variables (-R).  */
+ 
+-int no_builtin_rules_flag = 0;
+-int no_builtin_variables_flag = 0;
++int no_builtin_rules_flag = 1;
++int no_builtin_variables_flag = 1;
+ 
+ /* Nonzero means keep going even if remaking some file fails (-k).  */
+ 
+@@ -311,7 +311,7 @@
+ /* If nonzero, we should print a warning message
+    for each reference to an undefined variable.  */
+ 
+-int warn_undefined_variables_flag;
++int warn_undefined_variables_flag = 1;
+ 
+ static char *warn_undefined_variables_option = 0;
+ 

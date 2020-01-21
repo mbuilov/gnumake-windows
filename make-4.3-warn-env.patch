@@ -1,0 +1,195 @@
+--- make-4.3-orig/src/expand.c	2020-01-21 15:30:03.803323200 +0300
++++ make-4.3/src/expand.c	2020-01-21 15:38:08.107173900 +0300
+@@ -151,6 +151,8 @@
+   return value;
+ }
+ 
++#define CMPSTR(n,l,c) ( sizeof(c "") - 1 == (l) && memcmp(n, c, sizeof(c "") - 1) == 0 )
++
+ /* Expand a simple reference to variable NAME, which is LENGTH chars long.  */
+ 
+ #ifdef __GNUC__
+@@ -165,7 +167,22 @@
+   v = lookup_variable (name, length);
+ 
+   if (v == 0)
+-    warn_undefined (name, length);
++    {
++      if (
++        !CMPSTR(name, length, "GNUMAKEFLAGS") &&
++        !CMPSTR(name, length, "MAKEFLAGS"))
++        {
++          warn_undefined (name, length);
++        }
++    }
++  else if (v->origin == o_env &&
++    strcmp("GNUMAKEFLAGS", v->name) &&
++    strcmp("MAKEOVERRIDES", v->name) &&
++    strcmp("MAKEFLAGS", v->name) &&
++    strcmp("MAKELEVEL", v->name))
++    {
++      warn_env (v->name, v->length);
++    }
+ 
+   /* If there's no variable by that name or it has no value, stop now.  */
+   if (v == 0 || (*v->value == '\0' && !v->append))
+@@ -340,6 +357,8 @@
+                     v = lookup_variable (beg, colon - beg);
+                     if (v == 0)
+                       warn_undefined (beg, colon - beg);
++                    else if (v->origin == o_env)
++                      warn_env (v->name, v->length);
+ 
+                     /* If the variable is not empty, perform the
+                        substitution.  */
+--- make-4.3-orig/src/function.c	2020-01-21 15:30:13.709340600 +0300
++++ make-4.3/src/function.c	2020-01-21 15:40:52.359862400 +0300
+@@ -501,12 +501,20 @@
+   struct variable *v = lookup_variable (argv[0], strlen (argv[0]));
+ 
+   if (v == 0)
+-    o = variable_buffer_output (o, "undefined", 9);
++    {
++      warn_undefined (argv[0], strlen (argv[0]));
++      o = variable_buffer_output (o, "undefined", 9);
++    }
+   else
+-    if (v->recursive)
+-      o = variable_buffer_output (o, "recursive", 9);
+-    else
+-      o = variable_buffer_output (o, "simple", 6);
++    {
++      if (v->origin == o_env)
++        warn_env (v->name, v->length);
++
++      if (v->recursive)
++        o = variable_buffer_output (o, "recursive", 9);
++      else
++        o = variable_buffer_output (o, "simple", 6);
++    }
+ 
+   return o;
+ }
+@@ -1423,7 +1431,14 @@
+ 
+   /* Copy its value into the output buffer without expanding it.  */
+   if (v)
+-    o = variable_buffer_output (o, v->value, strlen (v->value));
++    {
++      if (v->origin == o_env)
++        warn_env (v->name, v->length);
++
++      o = variable_buffer_output (o, v->value, strlen (v->value));
++    }
++  else
++    warn_undefined (argv[0], strlen (argv[0]));
+ 
+   return o;
+ }
+@@ -2600,6 +2615,8 @@
+ 
+   if (v == 0)
+     warn_undefined (fname, flen);
++  else if (v->origin == o_env)
++    warn_env (v->name, v->length);
+ 
+   if (v == 0 || *v->value == '\0')
+     return o;
+--- make-4.3-orig/src/read.c	2020-01-03 10:11:27.000000000 +0300
++++ make-4.3/src/read.c	2020-01-21 15:41:50.923365300 +0300
+@@ -822,7 +822,13 @@
+                 {
+                   struct variable *v = lookup_variable (p, l);
+                   if (v == 0)
+-                    v = define_variable_global (p, l, "", o_file, 0, fstart);
++                    {
++                      warn_undefined (p, l);
++                      v = define_variable_global (p, l, "", o_file, 0, fstart);
++                    }
++                  else if (v->origin == o_env && exporting)
++                    warn_env (v->name, v->length);
++
+                   v->export = exporting ? v_export : v_noexport;
+                 }
+ 
+@@ -1726,6 +1732,10 @@
+ 
+       var[l] = '\0';
+       v = lookup_variable (var, l);
++      if (v == 0)
++        warn_undefined (var, l);
++      else if (v->origin == o_env)
++        warn_env (v->name, v->length);
+ 
+       conditionals->ignoring[o] =
+         ((v != 0 && *v->value != '\0') == (cmdtype == c_ifndef));
+--- make-4.3-orig/src/variable.c	2020-01-21 15:29:57.688112400 +0300
++++ make-4.3/src/variable.c	2020-01-21 15:43:41.340359200 +0300
+@@ -1242,7 +1242,11 @@
+          The value is set IFF the variable is not defined yet. */
+       v = lookup_variable (varname, strlen (varname));
+       if (v)
+-        goto done;
++        {
++          if (v->origin == o_env)
++            warn_env (v->name, v->length);
++          goto done;
++        }
+ 
+       conditional = 1;
+       flavor = f_recursive;
+@@ -1275,6 +1279,9 @@
+           {
+             /* There was no old value.
+                This becomes a normal recursive definition.  */
++            if (strcmp(".INCLUDE_DIRS", varname))
++              warn_undefined (varname, strlen (varname));
++
+             p = value;
+             flavor = f_recursive;
+           }
+@@ -1286,6 +1293,9 @@
+             const char *val;
+             char *tp = NULL;
+ 
++            if (v->origin == o_env)
++              warn_env (v->name, v->length);
++
+             val = value;
+             if (v->recursive)
+               /* The previous definition of the variable was recursive.
+@@ -1573,9 +1583,17 @@
+                 var->flavor = f_append;
+                 break;
+               case '?':
++                error (reading_file,
++                  (int)((e ? e : p - 1) - var->name),
++                  _("warning: conditionally-defined variable '%.*s'"),
++                  (int)((e ? e : p - 1) - var->name), var->name);
+                 var->flavor = f_conditional;
+                 break;
+               case '!':
++                error (reading_file,
++                  (int)((e ? e : p - 1) - var->name),
++                  _("warning: shell-defined variable '%.*s'"),
++                  (int)((e ? e : p - 1) - var->name), var->name);
+                 var->flavor = f_shell;
+                 break;
+               default:
+--- make-4.3-orig/src/variable.h	2020-01-21 15:29:57.688112400 +0300
++++ make-4.3/src/variable.h	2020-01-21 15:44:04.974400700 +0300
+@@ -245,6 +245,14 @@
+                                 show_undefined_variable_warn (n, l);    \
+                               }while(0)
+ 
++/* Warn that NAME is an environment-defined variable .  */
++
++#define warn_env(n,l) do{\
++                                error (reading_file, (l),               \
++                                       _("warning: using environment variable '%.*s'"), \
++                                       (int)(l), (n));                  \
++                              }while(0)
++
+ char **target_environment (struct file *file);
+ 
+ struct pattern_var *create_pattern_var (const char *target,

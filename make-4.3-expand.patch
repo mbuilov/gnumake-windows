@@ -1,0 +1,35 @@
+--- make-4.3/src/expand.c	2020-01-03 10:11:27.000000000 +0300
++++ make-4.3-patched/src/expand.c	2020-01-21 11:33:04.092465900 +0300
+@@ -210,6 +210,17 @@
+       return (variable_buffer);
+     }
+ 
++  if (length == SIZE_MAX)
++    {
++      /* Don't copy the string if it does not contain "$".  */
++      p1 = strchr (string, '$');
++      if (!p1)
++        {
++          o = variable_buffer_output (o, string, strlen (string) + 1);
++          return (variable_buffer + line_offset);
++        }
++    }
++
+   /* We need a copy of STRING: due to eval, it's possible that it will get
+      freed as we process it (it might be the value of a variable that's reset
+      for example).  Also having a nil-terminated string is handy.  */
+@@ -222,7 +233,13 @@
+          variable output buffer, and skip them.  Uninteresting chars end
+          at the next $ or the end of the input.  */
+ 
+-      p1 = strchr (p, '$');
++      if (length == SIZE_MAX)
++        {
++          length = 0;
++          p1 = p + (size_t)(p1 - string);
++        }
++      else
++        p1 = strchr (p, '$');
+ 
+       o = variable_buffer_output (o, p, p1 != 0 ? (size_t) (p1 - p) : strlen (p) + 1);
+ 
