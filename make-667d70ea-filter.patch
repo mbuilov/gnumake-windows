@@ -1,0 +1,22 @@
+diff --git a/src/function.c b/src/function.c
+index 38ab9667..a5b83c60 100644
+--- a/src/function.c
++++ b/src/function.c
+@@ -1103,7 +1103,7 @@ func_filter_filterout (char *o, char **argv, const char *funcname)
+           wp = hash_find_item (&a_word_table, &a_word_key);
+           while (wp)
+             {
+-              wp->matched |= 1;
++              wp->matched = 1;
+               wp = wp->chain;
+             }
+         }
+@@ -1117,7 +1117,7 @@ func_filter_filterout (char *o, char **argv, const char *funcname)
+   for (wp = words; wp < word_end; ++wp)
+     if (is_filter ? wp->matched : !wp->matched)
+       {
+-        o = variable_buffer_output (o, wp->str, strlen (wp->str));
++        o = variable_buffer_output (o, wp->str, wp->length);
+         o = variable_buffer_output (o, " ", 1);
+         doneany = 1;
+       }

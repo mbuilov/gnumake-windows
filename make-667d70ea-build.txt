@@ -1,0 +1,23 @@
+Instructions for building native gnumake.exe for Windows from git
+
+From cygwin or other unix shell in this directory:
+
+1) get make sources from git:    git clone https://git.savannah.gnu.org/git/make.git
+2) go to sources:                cd make
+3) patch make:
+4) apply patches:
+
+patch -Np1 -i ../make-4.3-sub_proc.patch
+patch -Np1 -i ../make-667d70ea-win32-ctrl-c.patch
+patch -Np1 -i ../make-667d70ea-SV49841.patch
+patch -Np1 -i ../make-667d70ea-warn-noargs.patch
+patch -Np1 -i ../make-667d70ea-expand.patch
+patch -Np1 -i ../make-667d70ea-sort.patch
+patch -Np1 -i ../make-667d70ea-filter.patch
+patch -Np1 -i ../make-667d70ea-win32-colors.patch
+patch -Np1 -i ../make-667d70ea-loadavg.patch
+
+5) run dos prompt:   cmd.exe /c "start cmd.exe"
+6) setup compiler:   "c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86_amd64
+7) do compile:       build_w32.bat --without-guile
+8) build result:     WinRel\gnumake.exe

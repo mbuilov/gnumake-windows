@@ -1,0 +1,256 @@
+diff --git a/src/commands.c b/src/commands.c
+index ee9c5367..e37881cd 100644
+--- a/src/commands.c
++++ b/src/commands.c
+@@ -474,6 +474,12 @@ execute_file_commands (struct file *file)
+   /* Start the commands running.  */
+   new_job (file);
+ }
++
++#ifdef WINDOWS32
++/* defined in job.c */
++extern void wait_until_main_thread_sleeps (void);
++#endif
++
+ 
+ /* This is set while we are inside fatal_error_signal,
+    so things can avoid nonreentrant operations.  */
+@@ -505,25 +511,11 @@ fatal_error_signal (int sig)
+   exit (10);
+ #else /* not Amiga */
+ #ifdef WINDOWS32
+-  extern HANDLE main_thread;
+-
+   /* Windows creates a separate thread for handling Ctrl+C, so we need
+      to suspend the main thread, or else we will have race conditions
+      when both threads call reap_children.  */
+-  if (main_thread)
+-    {
+-      DWORD susp_count = SuspendThread (main_thread);
+-
+-      if (susp_count != 0)
+-        fprintf (stderr, "SuspendThread: suspend count = %lu\n", susp_count);
+-      else if (susp_count == (DWORD)-1)
+-        {
+-          DWORD ierr = GetLastError ();
+-
+-          fprintf (stderr, "SuspendThread: error %lu: %s\n",
+-                   ierr, map_windows32_error_to_string (ierr));
+-        }
+-    }
++  /* Wait until main thread releases resources and goes to sleep.  */
++  wait_until_main_thread_sleeps ();
+ #endif
+   handling_fatal_signal = 1;
+ 
+@@ -587,8 +579,6 @@ fatal_error_signal (int sig)
+ #endif
+ 
+ #ifdef WINDOWS32
+-  if (main_thread)
+-    CloseHandle (main_thread);
+   /* Cannot call W32_kill with a pid (it needs a handle).  The exit
+      status of 130 emulates what happens in Bash.  */
+   exit (130);
+diff --git a/src/job.c b/src/job.c
+index 8d1bdefb..5f8bf682 100644
+--- a/src/job.c
++++ b/src/job.c
+@@ -36,7 +36,6 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
+ const char *default_shell = "sh.exe";
+ int no_default_sh_exe = 1;
+ int batch_mode_shell = 1;
+-HANDLE main_thread;
+ 
+ #elif defined (_AMIGA)
+ 
+@@ -608,6 +607,77 @@ child_handler (int sig UNUSED)
+ #endif
+ }
+ 
++#ifdef WINDOWS32
++
++/* If non-zero, then Main thread should release resources and go to sleep.  */
++int main_thread_should_sleep = 0;
++
++/* Event object on which Ctrl-C handler thread will wait
++   until Main thread unlocks resources.  */
++static HANDLE susp_main_event = NULL;
++
++void create_susp_main_event (void)
++{
++  susp_main_event = CreateEvent(
++    NULL,  /* The handle cannot be inherited by child processes */
++    FALSE, /* Manual-reset */
++    FALSE, /* Initial state */
++    NULL   /* Name of the event object */
++  );
++
++  if (susp_main_event == NULL)
++    {
++      DWORD e = GetLastError ();
++      fprintf (stderr,
++               "Failed to create event object (Error %ld: %s)\n",
++               e, map_windows32_error_to_string (e));
++    }
++}
++
++void delete_susp_main_event (void)
++{
++  CloseHandle(susp_main_event);
++}
++
++/* If Main thread needs to be suspended, by calling this function, it
++   will wakeup Ctrl-C handler thread and then will go to infinite sleep.  */
++static void check_need_sleep (void)
++{
++  /* Ctrl-C handler thread sets this flag only after suspending Main thread,
++     so if flag is set, then calling thread is not the Main thread.  */
++  if (handling_fatal_signal)
++    return;
++
++  /* Check if Ctrl-C handler thread waits to suspend main thread.  */
++  if (main_thread_should_sleep)
++    {
++      SetEvent (susp_main_event);
++      Sleep (INFINITE);
++    }
++}
++
++/* Called by Ctrl-C handler thread:
++  wait until main thread releases resources and goes to sleep.  */
++void wait_until_main_thread_sleeps (void)
++{
++  DWORD result;
++
++  /* Tell Main thread that it should go to sleep.  */
++  main_thread_should_sleep = 1;
++
++  /* And wait for it */
++  result = WaitForSingleObject(susp_main_event, INFINITE);
++  if (WAIT_OBJECT_0 != result)
++    {
++      DWORD e = GetLastError ();
++      fprintf (stderr,
++               "Failed to wait to suspend main thread (Error %ld: %s)\n",
++               e, map_windows32_error_to_string (e));
++    }
++}
++
++#endif /* WINDOWS32 */
++
+ extern pid_t shell_function_pid;
+ 
+ /* Reap all dead children, storing the returned status and the new command
+@@ -651,6 +721,11 @@ reap_children (int block, int err)
+       int any_remote, any_local;
+       int dontcare;
+ 
++#ifdef WINDOWS32
++      /* Check if Main thread should go to sleep.  */
++      check_need_sleep ();
++#endif
++
+       if (err && block)
+         {
+           static int printed = 0;
+@@ -814,24 +889,6 @@ reap_children (int block, int err)
+             exit_sig = 0;
+             coredump = 0;
+ 
+-            /* Record the thread ID of the main process, so that we
+-               could suspend it in the signal handler.  */
+-            if (!main_thread)
+-              {
+-                hcTID = GetCurrentThread ();
+-                hcPID = GetCurrentProcess ();
+-                if (!DuplicateHandle (hcPID, hcTID, hcPID, &main_thread, 0,
+-                                      FALSE, DUPLICATE_SAME_ACCESS))
+-                  {
+-                    DWORD e = GetLastError ();
+-                    fprintf (stderr,
+-                             "Determine main thread ID (Error %ld: %s)\n",
+-                             e, map_windows32_error_to_string (e));
+-                  }
+-                else
+-                  DB (DB_VERBOSE, ("Main thread handle = %p\n", main_thread));
+-              }
+-
+             /* wait for anything to finish */
+             hPID = process_wait_for_any (block, &dwWaitStatus);
+             if (hPID)
+@@ -998,7 +1055,13 @@ reap_children (int block, int err)
+           /* If there are more commands to run, try to start them.  */
+           if (job_next_command (c))
+             {
+-              if (handling_fatal_signal)
++              int dying = handling_fatal_signal;
++#ifdef WINDOWS32
++              /* Check if Ctrl-C handler thread waits to kill jobs.  */
++              if (main_thread_should_sleep)
++                dying = 1;
++#endif
++              if (dying)
+                 {
+                   /* Never start new commands while we are dying.
+                      Since there are more commands that wanted to be run,
+diff --git a/src/main.c b/src/main.c
+index 66086029..4bc67987 100644
+--- a/src/main.c
++++ b/src/main.c
+@@ -233,6 +233,12 @@ static const int inf_jobs = 0;
+ 
+ static char *jobserver_auth = NULL;
+ 
++#ifdef WINDOWS32
++/* defined in job.c */
++extern void create_susp_main_event (void);
++extern void delete_susp_main_event (void);
++#endif
++
+ /* Handle for the mutex used on Windows to synchronize output of our
+    children under -O.  */
+ 
+@@ -1085,6 +1091,7 @@ main (int argc, char **argv, char **envp)
+   const char *windows32_path = NULL;
+ 
+   SetUnhandledExceptionFilter (handle_runtime_exceptions);
++  create_susp_main_event ();
+ 
+   /* start off assuming we have no shell */
+   unixy_shell = 0;
+@@ -3741,6 +3748,10 @@ die (int status)
+           int _x UNUSED;
+           _x = chdir (directory_before_chdir);
+         }
++
++#ifdef WINDOWS32
++      delete_susp_main_event ();
++#endif
+     }
+ 
+   exit (status);
+diff --git a/src/output.c b/src/output.c
+index 4827c14d..6845d96e 100644
+--- a/src/output.c
++++ b/src/output.c
+@@ -245,6 +245,19 @@ pump_from_tmp (int from, FILE *to)
+           break;
+         }
+       fflush (to);
++#ifdef WINDOWS32
++      /* Check if Make was interrupted.  */
++      {
++        extern int main_thread_should_sleep;
++        if (main_thread_should_sleep)
++          {
++            /* If output is not redirected to file - stop writing,
++               because writing to windows console is too slow.  */
++            if (-1l == ftell (to))
++              break;
++          }
++      }
++#endif
+     }
+ 
+ #ifdef WINDOWS32

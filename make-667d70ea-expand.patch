@@ -1,0 +1,37 @@
+diff --git a/src/expand.c b/src/expand.c
+index 6397bb22..565b1af8 100644
+--- a/src/expand.c
++++ b/src/expand.c
+@@ -211,6 +211,17 @@ variable_expand_string (char *line, const char *string, size_t length)
+       return variable_buffer;
+     }
+ 
++  if (length == SIZE_MAX)
++    {
++      /* Don't copy the string if it does not contain "$".  */
++      p1 = strchr (string, '$');
++      if (!p1)
++        {
++          o = variable_buffer_output (o, string, strlen (string) + 1);
++          return (variable_buffer + line_offset);
++        }
++    }
++
+   /* We need a copy of STRING: due to eval, it's possible that it will get
+      freed as we process it (it might be the value of a variable that's reset
+      for example).  Also having a nil-terminated string is handy.  */
+@@ -223,7 +234,13 @@ variable_expand_string (char *line, const char *string, size_t length)
+          variable output buffer, and skip them.  Uninteresting chars end
+          at the next $ or the end of the input.  */
+ 
+-      p1 = strchr (p, '$');
++      if (length == SIZE_MAX)
++        {
++          length = 0;
++          p1 = p + (size_t)(p1 - string);
++        }
++      else
++        p1 = strchr (p, '$');
+ 
+       o = variable_buffer_output (o, p, p1 != 0 ? (size_t) (p1 - p) : strlen (p) + 1);
+ 
