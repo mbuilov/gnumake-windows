@@ -4,7 +4,10 @@ From cygwin or other unix shell in this directory:
 
 1) get make sources from git:    git clone https://git.savannah.gnu.org/git/make.git
 2) go to sources:                cd make
-3) patch make:
+3) if needed, enable case insensitive file names support:
+
+sed -i 's/.* HAVE_CASE_INSENSITIVE_FS .*/#define HAVE_CASE_INSENSITIVE_FS 1/' ./src/config.h.W32.template
+
 4) apply patches:
 
 patch -Np1 -i ../make-4.3-sub_proc.patch
