@@ -1,7 +1,7 @@
---- make-4.3/src/expand.c	2020-01-03 10:11:27.000000000 +0300
-+++ make-4.3-patched/src/expand.c	2020-01-21 11:33:04.092465900 +0300
-@@ -210,6 +210,17 @@
-       return (variable_buffer);
+--- make-4.4.1-orig/src/expand.c	2023-01-28 18:18:16.000000000 +0300
++++ make-4.4.1/src/expand.c	2024-09-18 09:08:36.590934500 +0300
+@@ -234,6 +234,17 @@
+       return variable_buffer;
      }
  
 +  if (length == SIZE_MAX)
@@ -18,7 +18,7 @@
    /* We need a copy of STRING: due to eval, it's possible that it will get
       freed as we process it (it might be the value of a variable that's reset
       for example).  Also having a nil-terminated string is handy.  */
-@@ -222,7 +233,13 @@
+@@ -246,7 +257,13 @@
           variable output buffer, and skip them.  Uninteresting chars end
           at the next $ or the end of the input.  */
  

@@ -1,6 +1,6 @@
---- make-4.3-orig/src/main.c	2020-01-21 15:37:20.183889700 +0300
-+++ make-4.3/src/main.c	2020-01-21 15:49:24.370361800 +0300
-@@ -213,8 +213,8 @@
+--- make-4.4.1-orig/src/main.c	2023-02-21 08:03:51.000000000 +0300
++++ make-4.4.1/src/main.c	2024-09-18 10:15:40.935608300 +0300
+@@ -183,8 +183,8 @@
  
  /* Nonzero means do not use any of the builtin rules (-r) / variables (-R).  */
  
@@ -11,7 +11,7 @@
  
  /* Nonzero means keep going even if remaking some file fails (-k).  */
  
-@@ -311,7 +311,7 @@
+@@ -284,7 +284,7 @@
  /* If nonzero, we should print a warning message
     for each reference to an undefined variable.  */
  

@@ -1,0 +1,61 @@
+Instructions for building native gnumake.exe for Windows
+
+From cygwin or other unix shell in this directory:
+
+1) get archive:      wget http://ftp.gnu.org/gnu/make/make-4.4.1.tar.gz
+2) unpack archive:   tar xf make-4.4.1.tar.gz
+3) go to sources:    cd make-4.4.1
+4) patch make:
+
+ - fix bugs under Windows:
+  (detect too small or empty source Makefile)
+  patch -Np1 -i ../make-4.4.1-sub_proc.patch
+  (don't hang on Ctrl-C)
+  patch -Np1 -i ../make-4.4.1-win32-ctrl-c.patch
+
+ - optionally, fix inconsistency with fake function arguments, see http://savannah.gnu.org/bugs/?49841
+  patch -Np1 -i ../make-4.4.1-SV49841.patch
+ 
+ - optionally, add ability to enable/disable warnings about use of undefined numeric variables (function arguments)
+  patch -Np1 -i ../make-4.4.1-warn-noargs.patch
+
+ - optional optimization patches
+  patch -Np1 -i ../make-4.4.1-expand.patch
+  patch -Np1 -i ../make-4.4.1-sort.patch
+  patch -Np1 -i ../make-4.4.1-filter.patch
+
+ - support for ANSI color escape sequences in Windows console
+  patch -Np1 -i ../make-4.4.1-win32-colors.patch
+
+ *** development patches for makefile writers ***
+
+ - show warnings about use of environment variables in makefiles
+  patch -Np1 -i ../make-4.4.1-warn-env.patch
+
+ - disable builtin rules/variables, show warnings about use of
+   undefined variables in makefiles, except function arguments
+   (always run with -rR --warn-undefined-variables)
+  patch -Np1 -i ../make-4.4.1-no-builtin-warn-undef.patch
+
+5) if needed, enable case insensitive file names support:
+  sed -i 's/.* HAVE_CASE_INSENSITIVE_FS .*/#define HAVE_CASE_INSENSITIVE_FS 1/' ./src/config.h.W32
+
+6) fix build flags:
+  - to build for windows7/x64, add compiler define /D_WIN32_WINNT=0x601
+   sed -i 's@ NDEBUG"@ NDEBUG /D_WIN32_WINNT=0x601"@' ./build_w32.bat
+
+  - to build for windowsXP/x86, add compiler define /D_WIN32_WINNT=0x501 and linker switch /SUBSYSTEM:CONSOLE,5.01
+   sed -i -e 's@ NDEBUG"@ NDEBUG /D_WIN32_WINNT=0x501"@' \
+          -e 's@/SUBSYSTEM:console @/SUBSYSTEM:console,5.01 @' \
+          ./build_w32.bat
+
+7) run dos prompt:   cmd.exe /c "start cmd.exe"
+8) setup compiler:
+  - to build for windows7/x64:
+   "c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86_amd64
+
+  - to build for windowsXP/x86:
+   "c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
+
+9) do compile:       build_w32.bat --verbose --without-guile
+10) build result:    WinRel\gnumake.exe --version

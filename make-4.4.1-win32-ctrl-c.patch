@@ -1,8 +1,6 @@
-diff --git a/src/commands.c b/src/commands.c
-index ee9c5367..e37881cd 100644
---- a/src/commands.c
-+++ b/src/commands.c
-@@ -474,6 +474,12 @@ execute_file_commands (struct file *file)
+--- make-4.4.1-orig/src/commands.c	2023-01-28 16:34:37.000000000 +0300
++++ make-4.4.1/src/commands.c	2024-09-18 08:19:25.692332500 +0300
+@@ -472,6 +472,12 @@
    /* Start the commands running.  */
    new_job (file);
  }
@@ -15,7 +13,7 @@ index ee9c5367..e37881cd 100644
  
  /* This is set while we are inside fatal_error_signal,
     so things can avoid nonreentrant operations.  */
-@@ -505,25 +511,11 @@ fatal_error_signal (int sig)
+@@ -503,25 +509,12 @@
    exit (10);
  #else /* not Amiga */
  #ifdef WINDOWS32
@@ -27,7 +25,7 @@ index ee9c5367..e37881cd 100644
 -  if (main_thread)
 -    {
 -      DWORD susp_count = SuspendThread (main_thread);
--
+ 
 -      if (susp_count != 0)
 -        fprintf (stderr, "SuspendThread: suspend count = %lu\n", susp_count);
 -      else if (susp_count == (DWORD)-1)
@@ -43,7 +41,7 @@ index ee9c5367..e37881cd 100644
  #endif
    handling_fatal_signal = 1;
  
-@@ -587,8 +579,6 @@ fatal_error_signal (int sig)
+@@ -589,8 +582,6 @@
  #endif
  
  #ifdef WINDOWS32
@@ -52,11 +50,9 @@ index ee9c5367..e37881cd 100644
    /* Cannot call W32_kill with a pid (it needs a handle).  The exit
       status of 130 emulates what happens in Bash.  */
    exit (130);
-diff --git a/src/job.c b/src/job.c
-index 8d1bdefb..5f8bf682 100644
---- a/src/job.c
-+++ b/src/job.c
-@@ -36,7 +36,6 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
+--- make-4.4.1-orig/src/job.c	2023-02-22 04:53:48.000000000 +0300
++++ make-4.4.1/src/job.c	2024-09-18 08:22:52.069933500 +0300
+@@ -35,7 +35,6 @@
  const char *default_shell = "sh.exe";
  int no_default_sh_exe = 1;
  int batch_mode_shell = 1;
@@ -64,7 +60,7 @@ index 8d1bdefb..5f8bf682 100644
  
  #elif defined (_AMIGA)
  
-@@ -608,6 +607,77 @@ child_handler (int sig UNUSED)
+@@ -620,6 +619,77 @@
  #endif
  }
  
@@ -142,7 +138,7 @@ index 8d1bdefb..5f8bf682 100644
  extern pid_t shell_function_pid;
  
  /* Reap all dead children, storing the returned status and the new command
-@@ -651,6 +721,11 @@ reap_children (int block, int err)
+@@ -663,6 +733,11 @@
        int any_remote, any_local;
        int dontcare;
  
@@ -154,7 +150,7 @@ index 8d1bdefb..5f8bf682 100644
        if (err && block)
          {
            static int printed = 0;
-@@ -814,24 +889,6 @@ reap_children (int block, int err)
+@@ -826,24 +901,6 @@
              exit_sig = 0;
              coredump = 0;
  
@@ -179,7 +175,7 @@ index 8d1bdefb..5f8bf682 100644
              /* wait for anything to finish */
              hPID = process_wait_for_any (block, &dwWaitStatus);
              if (hPID)
-@@ -998,7 +1055,13 @@ reap_children (int block, int err)
+@@ -1010,7 +1067,13 @@
            /* If there are more commands to run, try to start them.  */
            if (job_next_command (c))
              {
@@ -194,13 +190,11 @@ index 8d1bdefb..5f8bf682 100644
                  {
                    /* Never start new commands while we are dying.
                       Since there are more commands that wanted to be run,
-diff --git a/src/main.c b/src/main.c
-index 66086029..4bc67987 100644
---- a/src/main.c
-+++ b/src/main.c
-@@ -233,6 +233,12 @@ static const int inf_jobs = 0;
+--- make-4.4.1-orig/src/main.c	2023-02-21 08:03:51.000000000 +0300
++++ make-4.4.1/src/main.c	2024-09-18 08:53:02.804603700 +0300
+@@ -241,6 +241,12 @@
  
- static char *jobserver_auth = NULL;
+ static char *shuffle_mode = NULL;
  
 +#ifdef WINDOWS32
 +/* defined in job.c */
@@ -208,10 +202,10 @@ index 66086029..4bc67987 100644
 +extern void delete_susp_main_event (void);
 +#endif
 +
- /* Handle for the mutex used on Windows to synchronize output of our
-    children under -O.  */
+ /* Handle for the mutex to synchronize output of our children under -O.  */
  
-@@ -1085,6 +1091,7 @@ main (int argc, char **argv, char **envp)
+ static char *sync_mutex = NULL;
+@@ -1183,6 +1210,7 @@
    const char *windows32_path = NULL;
  
    SetUnhandledExceptionFilter (handle_runtime_exceptions);
@@ -219,7 +213,7 @@ index 66086029..4bc67987 100644
  
    /* start off assuming we have no shell */
    unixy_shell = 0;
-@@ -3741,6 +3748,10 @@ die (int status)
+@@ -3863,6 +3892,10 @@
            int _x UNUSED;
            _x = chdir (directory_before_chdir);
          }
@@ -230,11 +224,9 @@ index 66086029..4bc67987 100644
      }
  
    exit (status);
-diff --git a/src/output.c b/src/output.c
-index 4827c14d..6845d96e 100644
---- a/src/output.c
-+++ b/src/output.c
-@@ -245,6 +245,19 @@ pump_from_tmp (int from, FILE *to)
+--- make-4.4.1-orig/src/output.c	2023-01-02 01:05:12.000000000 +0300
++++ make-4.4.1/src/output.c	2024-09-18 08:28:02.662720300 +0300
+@@ -176,6 +176,19 @@
            break;
          }
        fflush (to);

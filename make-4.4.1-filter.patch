@@ -1,8 +1,6 @@
-diff --git a/src/function.c b/src/function.c
-index 38ab9667..a5b83c60 100644
---- a/src/function.c
-+++ b/src/function.c
-@@ -1103,7 +1103,7 @@ func_filter_filterout (char *o, char **argv, const char *funcname)
+--- make-4.4.1-orig/src/function.c	2023-01-12 03:51:34.000000000 +0300
++++ make-4.4.1/src/function.c	2024-09-18 09:23:10.970908100 +0300
+@@ -1103,7 +1103,7 @@
            wp = hash_find_item (&a_word_table, &a_word_key);
            while (wp)
              {
@@ -11,7 +9,7 @@ index 38ab9667..a5b83c60 100644
                wp = wp->chain;
              }
          }
-@@ -1117,7 +1117,7 @@ func_filter_filterout (char *o, char **argv, const char *funcname)
+@@ -1117,7 +1117,7 @@
    for (wp = words; wp < word_end; ++wp)
      if (is_filter ? wp->matched : !wp->matched)
        {

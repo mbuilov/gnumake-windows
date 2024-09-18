@@ -1,0 +1,14 @@
+--- make-4.4.1-orig/src/function.c	2023-01-12 03:51:34.000000000 +0300
++++ make-4.4.1/src/function.c	2024-09-18 09:23:10.970908100 +0300
+@@ -1221,7 +1221,10 @@
+       ++wordi;
+     }
+ 
+-  words = xmalloc ((wordi == 0 ? 1 : wordi) * sizeof (char *));
++  if (wordi == 0)
++    return o;
++
++  words = xmalloc (wordi * sizeof (char *));
+ 
+   /* Now assign pointers to each string in the array.  */
+   t = argv[0];

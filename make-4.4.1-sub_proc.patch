@@ -1,5 +1,5 @@
---- make-4.3/src/w32/subproc/sub_proc.c	2020-01-03 10:11:27.000000000 +0300
-+++ make-4.3-patched/src/w32/subproc/sub_proc.c	2020-01-21 11:23:12.254614700 +0300
+--- make-4.4.1-orig/src/w32/subproc/sub_proc.c	2023-01-12 03:05:58.000000000 +0300
++++ make-4.4.1/src/w32/subproc/sub_proc.c	2024-09-18 08:11:33.881081000 +0300
 @@ -645,6 +645,11 @@
                                  &bytes_returned, 0) == FALSE || bytes_returned < 2) {
  

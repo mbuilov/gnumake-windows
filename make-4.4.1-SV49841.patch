@@ -1,8 +1,6 @@
-diff --git a/src/expand.c b/src/expand.c
-index 6397bb22..a5f2e23e 100644
---- a/src/expand.c
-+++ b/src/expand.c
-@@ -498,7 +498,7 @@ variable_append (const char *name, size_t length,
+--- make-4.4.1-orig/src/expand.c	2023-01-28 18:18:16.000000000 +0300
++++ make-4.4.1/src/expand.c	2024-09-18 09:08:36.590934500 +0300
+@@ -521,7 +538,7 @@
      return initialize_variable_output ();
  
    /* If this set is local and the next is not a parent, then next is local.  */
@@ -11,11 +9,9 @@ index 6397bb22..a5f2e23e 100644
  
    /* Try to find the variable in this variable set.  */
    v = lookup_variable_in_set (name, length, set->set);
-diff --git a/src/function.c b/src/function.c
-index 38ab9667..b99ab6d6 100644
---- a/src/function.c
-+++ b/src/function.c
-@@ -2718,6 +2718,7 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
+--- make-4.4.1-orig/src/function.c	2023-01-12 03:51:34.000000000 +0300
++++ make-4.4.1/src/function.c	2024-09-18 09:23:10.970908100 +0300
+@@ -2718,6 +2718,7 @@
    int saved_args;
    const struct function_table_entry *entry_p;
    struct variable *v;
@@ -23,7 +19,7 @@ index 38ab9667..b99ab6d6 100644
  
    /* Clean up the name of the variable to be invoked.  */
    fname = next_token (argv[0]);
-@@ -2759,7 +2760,7 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
+@@ -2759,7 +2760,7 @@
  
    /* Set up arguments $(1) .. $(N).  $(0) is the function name.  */
  
@@ -32,7 +28,7 @@ index 38ab9667..b99ab6d6 100644
  
    for (i=0; *argv; ++i, ++argv)
      {
-@@ -2769,26 +2770,24 @@ func_call (char *o, char **argv, const char *funcname UNUSED)
+@@ -2769,26 +2770,23 @@
        define_variable (num, strlen (num), *argv, o_automatic, 0);
      }
  
@@ -51,7 +47,7 @@ index 38ab9667..b99ab6d6 100644
 +  if (i > max_args)
 +    max_args = i;
  
--      sprintf (num, "%d", i);
+-      sprintf (num, "%u", i);
 -      define_variable (num, strlen (num), "", o_automatic, 0);
 -    }
 +  /* Mark the list with max_args - the mark is checked while looking up
@@ -64,17 +60,15 @@ index 38ab9667..b99ab6d6 100644
       the variable buffer.  */
  
    v->exp_count = EXP_COUNT_MAX;
- 
+-
 -  saved_args = max_args;
 -  max_args = i;
    o = variable_expand_string (o, body, flen+3);
    max_args = saved_args;
  
-diff --git a/src/variable.c b/src/variable.c
-index db3282fc..83e70dc8 100644
---- a/src/variable.c
-+++ b/src/variable.c
-@@ -459,6 +459,7 @@ lookup_variable (const char *name, size_t length)
+--- make-4.4.1-orig/src/variable.c	2023-01-28 21:04:47.000000000 +0300
++++ make-4.4.1/src/variable.c	2024-09-18 12:13:23.564922300 +0300
+@@ -462,6 +462,7 @@
    const struct variable_set_list *setlist;
    struct variable var_key;
    int is_parent = 0;
@@ -82,7 +76,7 @@ index db3282fc..83e70dc8 100644
  
    var_key.name = (char *) name;
    var_key.length = (unsigned int) length;
-@@ -473,7 +474,45 @@ lookup_variable (const char *name, size_t length)
+@@ -476,7 +477,45 @@
        if (v && (!is_parent || !v->private_var))
          return v->special ? lookup_special_var (v) : v;
  
@@ -129,7 +123,7 @@ index db3282fc..83e70dc8 100644
      }
  
  #ifdef VMS
-@@ -585,7 +624,7 @@ initialize_file_variables (struct file *file, int reading)
+@@ -611,7 +650,7 @@
      {
        initialize_file_variables (file->double_colon, reading);
        l->next = file->double_colon->variables;
@@ -138,7 +132,7 @@ index db3282fc..83e70dc8 100644
        return;
      }
  
-@@ -596,7 +635,7 @@ initialize_file_variables (struct file *file, int reading)
+@@ -622,7 +661,7 @@
        initialize_file_variables (file->parent, reading);
        l->next = file->parent->variables;
      }
@@ -147,7 +141,7 @@ index db3282fc..83e70dc8 100644
  
    /* If we're not reading makefiles and we haven't looked yet, see if
       we can find pattern variables for this target.  */
-@@ -657,9 +696,9 @@ initialize_file_variables (struct file *file, int reading)
+@@ -683,9 +722,9 @@
    if (file->pat_variables != 0)
      {
        file->pat_variables->next = l->next;
@@ -159,7 +153,7 @@ index db3282fc..83e70dc8 100644
      }
  }
  
-@@ -680,7 +719,7 @@ create_new_variable_set (void)
+@@ -706,7 +745,7 @@
      xmalloc (sizeof (struct variable_set_list));
    setlist->set = set;
    setlist->next = current_variable_set_list;
@@ -168,20 +162,17 @@ index db3282fc..83e70dc8 100644
  
    return setlist;
  }
-@@ -702,9 +741,11 @@ push_new_variable_scope (void)
-          pointing to &global  */
-       struct variable_set *set = current_variable_set_list->set;
+@@ -730,7 +769,9 @@
        current_variable_set_list->set = global_setlist.set;
--      global_setlist.set = set;
+       global_setlist.set = set;
        current_variable_set_list->next = global_setlist.next;
 +      current_variable_set_list->mark = global_setlist.mark;
-+      global_setlist.set = set;
        global_setlist.next = current_variable_set_list;
 +      global_setlist.mark = 0;
        current_variable_set_list = &global_setlist;
      }
    return (current_variable_set_list);
-@@ -735,7 +776,7 @@ pop_variable_scope (void)
+@@ -761,7 +802,7 @@
        set = global_setlist.set;
        global_setlist.set = setlist->set;
        global_setlist.next = setlist->next;
@@ -190,11 +181,9 @@ index db3282fc..83e70dc8 100644
      }
  
    /* Free the one we no longer need.  */
-diff --git a/src/variable.h b/src/variable.h
-index 22e2d687..18778c58 100644
---- a/src/variable.h
-+++ b/src/variable.h
-@@ -98,7 +98,19 @@ struct variable_set_list
+--- make-4.4.1-orig/src/variable.h	2023-01-28 21:04:47.000000000 +0300
++++ make-4.4.1/src/variable.h	2024-09-18 08:57:33.459838100 +0300
+@@ -100,7 +100,19 @@
    {
      struct variable_set_list *next;     /* Link in the chain.  */
      struct variable_set *set;           /* Variable set.  */
