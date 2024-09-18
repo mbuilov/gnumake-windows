@@ -41,20 +41,15 @@ From cygwin or other unix shell in this directory:
   sed -i 's/.* HAVE_CASE_INSENSITIVE_FS .*/#define HAVE_CASE_INSENSITIVE_FS 1/' ./src/config.h.W32
 
 6) fix build flags:
-  - to build for windows7/x64, add compiler define /D_WIN32_WINNT=0x601
+  - to build for windows7, add compiler define /D_WIN32_WINNT=0x601
    sed -i 's@ NDEBUG"@ NDEBUG /D_WIN32_WINNT=0x601"@' ./build_w32.bat
-
-  - to build for windowsXP/x86, add compiler define /D_WIN32_WINNT=0x501 and linker switch /SUBSYSTEM:CONSOLE,5.01
-   sed -i -e 's@ NDEBUG"@ NDEBUG /D_WIN32_WINNT=0x501"@' \
-          -e 's@/SUBSYSTEM:console @/SUBSYSTEM:console,5.01 @' \
-          ./build_w32.bat
 
 7) run dos prompt:   cmd.exe /c "start cmd.exe"
 8) setup compiler:
   - to build for windows7/x64:
    "c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86_amd64
 
-  - to build for windowsXP/x86:
+  - to build for windows7/x86:
    "c:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" x86
 
 9) do compile:       build_w32.bat --verbose --without-guile

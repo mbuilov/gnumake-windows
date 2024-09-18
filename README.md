@@ -19,9 +19,9 @@ Author of the patches: Michael M. Builov (mbuilov@yandex.ru)
   [`make-4.4.1-build.txt`](/make-4.4.1-build.txt)
 
 ## Pre-built executables:
-- [`gnumake-4.4.1.exe`](/gnumake-4.4.1.exe) - gnu make 4.4.1 built for windowsXP/x86
+- [`gnumake-4.4.1.exe`](/gnumake-4.4.1.exe) - gnu make 4.4.1 built for windows7/x86
 - [`gnumake-4.4.1-x64.exe`](/gnumake-4.4.1-x64.exe) - gnu make 4.4.1 built for windows7/x64
-- [`gnumake-4.4.1-ign-case.exe`](/gnumake-4.4.1-ign-case.exe) - gnu make 4.4.1 built for windowsXP/x86
+- [`gnumake-4.4.1-ign-case.exe`](/gnumake-4.4.1-ign-case.exe) - gnu make 4.4.1 built for windows7/x86
 - [`gnumake-4.4.1-ign-case-x64.exe`](/gnumake-4.4.1-ign-case-x64.exe) - gnu make 4.4.1 built for windows7/x64
 
 ign-case
@@ -32,7 +32,7 @@ ign-case
 2) extra warnings about use of undefined variables
 3) run with implicitly added -rR --warn-undefined-variables switches
 
-- [`gnumake-4.4.1-dev.exe`](/gnumake-4.4.1-dev.exe) - gnu make 4.4.1 built for windowsXP/x86 (development version)
+- [`gnumake-4.4.1-dev.exe`](/gnumake-4.4.1-dev.exe) - gnu make 4.4.1 built for windows7/x86 (development version)
 - [`gnumake-4.4.1-dev-x64.exe`](/gnumake-4.4.1-dev-x64.exe) - gnu make 4.4.1 built for windows7/x64 (development version)
-- [`gnumake-4.4.1-ign-case-dev.exe`](/gnumake-4.4.1-ign-case-dev.exe) - gnu make 4.4.1 built for windowsXP/x86 (development version)
+- [`gnumake-4.4.1-ign-case-dev.exe`](/gnumake-4.4.1-ign-case-dev.exe) - gnu make 4.4.1 built for windows7/x86 (development version)
 - [`gnumake-4.4.1-ign-case-dev-x64.exe`](/gnumake-4.4.1-ign-case-dev-x64.exe) - gnu make 4.4.1 built for windows7/x64 (development version)
